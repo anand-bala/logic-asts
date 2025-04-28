@@ -1,0 +1,24 @@
+?expr: impl_expr
+
+?impl_expr: xor_expr 
+          | xor_expr "->" impl_expr  -> implies
+          | xor_expr "<->" impl_expr -> equiv
+
+?xor_expr: sum
+         | xor_expr ("^"|"xor") sum  -> xor
+
+?sum: product
+    | sum ("|"|"||") product         -> add
+
+?product: atom
+        | product ("&"|"&&") atom    -> mul
+
+?atom: ("0"|"1"|"TRUE"|"FALSE")      -> literal
+     | ("!"|"~") atom                -> neg
+     | NAME                          -> var
+     | "(" expr ")"
+
+%import common.CNAME                 -> NAME
+%import common.WS
+
+%ignore WS
