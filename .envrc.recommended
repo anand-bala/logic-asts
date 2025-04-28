@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+info() {
+  DIRENV_LOG_FORMAT="envrc: %s" log_status "$@"
+}
+
+make dev
+watch_file uv.lock
+source ./.venv/bin/activate

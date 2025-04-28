@@ -1,0 +1,33 @@
+SHELL := bash
+.ONESHELL:
+.SHELLFLAGS := -eu -o pipefail -c
+.DELETE_ON_ERROR:
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
+# Default: create the dev environment
+dev: uv.lock | .venv
+.PHONY: dev
+
+fmt:
+	uv run ruff format 
+	uv run ruff check --fix .
+.PHONY: fmt
+
+typing:
+	uv run mypy src
+.PHONY: typing
+
+lint: fmt typing
+.PHONY: lint
+
+test:
+	uv run --dev pytest
+.PHONY: test
+
+uv.lock .venv &: pyproject.toml
+	uv sync --frozen --dev
+
+# Automatic make target for scripts with locking
+%.py.lock: %.py
+	uv lock --script $<

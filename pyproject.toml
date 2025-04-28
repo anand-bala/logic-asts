@@ -1,0 +1,47 @@
+[project]
+name = "logic-asts"
+version = "0.1.0"
+description = "Grammars and parsers for various logic"
+readme = "README.md"
+authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
+
+[dependency-groups]
+dev = ["mypy>=1.15.0", "pytest>=8.3.5", "ruff>=0.11.7"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
+packages = ["logic_asts"]
+files = ["tests/*.py", "tests/**/*.py"]
+exclude = ["^build/"]                   # add mypyc build directory
+show_error_codes = true
+namespace_packages = false
+
+[tool.ruff]
+line-length = 127
+
+[tool.ruff.lint]
+extend-select = ["E", "F", "W", "N", "B", "ANN", "PYI", "I"]
+extend-ignore = ["F722"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"*.py" = ["B905", "E203", "E501", "W291", "W293"]
+"*.pyi" = ["B", "E501", "E701"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+pythonPlatform = "All"
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportAny = false
