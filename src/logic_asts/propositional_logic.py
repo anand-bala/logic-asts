@@ -1,10 +1,8 @@
-# pyright: reportMissingParameterType=false
 from __future__ import annotations
 
 import operator
 import sys
 import typing
-from collections.abc import Hashable
 from functools import reduce
 from pathlib import Path
 
@@ -12,9 +10,6 @@ import attrs
 from attrs import field, frozen
 from lark import Lark, Token, Transformer, v_args
 from typing_extensions import TypeIs, final, override
-
-Var = typing.TypeVar("Var", bound=Hashable)
-
 
 type PropExpr[Var] = Literal | Variable[Var] | Not[Var] | Or[Var] | And[Var] | Implies[Var] | Xor[Var] | Equiv[Var]
 
@@ -57,11 +52,10 @@ def _default_or[Var](lhs: PropExpr[Var], rhs: PropExpr[Var]) -> PropExpr[Var]:
             return Or([lhs, rhs])
 
 
-def is_literal(expr: PropExpr[Var]) -> TypeIs[Variable[Var] | Literal]:
+def is_literal[Var](expr: PropExpr[Var]) -> TypeIs[Variable[Var] | Literal]:
     return isinstance(expr, (Literal, Variable))
 
 
-@final
 @final
 @frozen
 class Implies[Var]:
@@ -88,7 +82,6 @@ class Implies[Var]:
         return self.expand().to_nnf()
 
 
-@final
 @final
 @frozen
 class Equiv[Var]:
@@ -117,7 +110,6 @@ class Equiv[Var]:
         return self.expand().to_nnf()
 
 
-@final
 @final
 @frozen
 class Xor[Var]:
@@ -268,19 +260,19 @@ class Literal:
     def __str__(self) -> str:
         return "t" if self.value else "f"
 
-    def __invert__(self) -> PropExpr[Var]:
+    def __invert__(self) -> Literal:
         return Literal(not self.value)
 
-    def __and__(self, other: PropExpr[Var]) -> PropExpr[Var]:
+    def __and__[Var](self, other: PropExpr[Var]) -> PropExpr[Var]:
         return _default_and(self, other)
 
-    def __or__(self, other: PropExpr[Var]) -> PropExpr[Var]:
+    def __or__[Var](self, other: PropExpr[Var]) -> PropExpr[Var]:
         return _default_or(self, other)
 
-    def to_nnf(self) -> PropExpr[Var]:
+    def to_nnf(self) -> typing.Self:
         return self
 
-    def expand(self) -> PropExpr[Var]:
+    def expand(self) -> typing.Self:
         return self
 
 
