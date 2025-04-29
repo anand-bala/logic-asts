@@ -15,6 +15,12 @@ CASES = [
         ),
     ),
     ("!Fp2", Not(ltl.Eventually(Variable("p2")))),
+    (
+        "F(a & F(b & F[,20]c))",
+        ltl.Eventually(
+            Variable("a") & ltl.Eventually(Variable("b") & ltl.Eventually(Variable("c"), ltl.TimeInterval(None, 20)))
+        ),
+    ),
 ]
 
 

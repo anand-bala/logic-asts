@@ -3,11 +3,12 @@
 ?start: expr
 
 // Add temporal operators with higher precedence than & and |
-%override ?product: until_op
-                 | product ("&"|"&&")  until_op   -> mul
+%override ?product: ex_binary
+                 | product ("&"|"&&")  ex_binary   -> mul
 
-?until_op: unary
-         | until_op ("until" | "U") [time_interval] unary -> until
+// Extended binary operations 
+?ex_binary: unary
+         | ex_binary ("until" | "U") [time_interval] unary -> until
 
 %extend ?unary: ("globally" | "G") [time_interval] unary    -> always
                  | ("eventually" | "F") [time_interval] unary  -> eventually
@@ -20,4 +21,3 @@ time_interval: "[" [INT] "," [INT] "]"
 %import common.WS
 
 %ignore WS
-

@@ -7,6 +7,7 @@ from lark import Token, Transformer, v_args
 
 from logic_asts.base import Equiv, Expr, Implies, Literal, Variable, Xor
 from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
+from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
 
 GRAMMARS_DIR = Path(__file__).parent
 
@@ -57,6 +58,9 @@ class BaseTransform(Transformer[Token, Expr]):
 @typing.final
 @v_args(inline=True)
 class LtlTransform(Transformer[Token, Expr]):
+    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+        return lhs & rhs
+
     def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         return Until(lhs, rhs, interval)
 
@@ -71,3 +75,34 @@ class LtlTransform(Transformer[Token, Expr]):
 
     def time_interval(self, start: int | None, end: int | None) -> TimeInterval:
         return TimeInterval(start, end)
+
+    def INT(self, value: Token | int) -> int:  # noqa: N802
+        return int(value)
+
+
+@typing.final
+@v_args(inline=True)
+class StrelTransform(Transformer[Token, Expr]):
+    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+        return lhs & rhs
+
+    def reach(self, lhs: Expr, dist_fn: str | None, interval: DistanceInterval, rhs: Expr) -> Expr:
+        return Reach(lhs, rhs, interval, dist_fn)
+
+    def escape(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+        return Escape(arg, interval, dist_fn)
+
+    def somewhere(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+        return Somewhere(arg, interval, dist_fn)
+
+    def everywhere(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+        return Everywhere(arg, interval, dist_fn)
+
+    def dist_interval(self, start: float | None, end: float | None) -> DistanceInterval:
+        return DistanceInterval(start, end)
+
+    def dist_fn(self, value: str | Token) -> str:
+        return str(value)
+
+    def NUMBER(self, value: Token | float) -> float:  # noqa: N802
+        return float(value)

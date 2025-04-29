@@ -1,20 +1,23 @@
 from __future__ import annotations
 
+from numbers import Real
+from typing import TypeVar
+
 import attrs
 
+T = TypeVar("T", bound=Real)
 
-def check_positive[T](_instance: object, attribute: attrs.Attribute[T | None], value: float | int | None) -> None:
+
+def check_positive(_instance: object, attribute: attrs.Attribute[T | None], value: T | None) -> None:
     if value is not None and value < 0:
-        raise ValueError(f"attribute {attribute} cannot have negative value")
+        raise ValueError(f"attribute {attribute.name} cannot have negative value ({value})")
 
 
-def check_start[T](instance: object, attribute: attrs.Attribute[T | None], value: float | int | None) -> None:
-    match (value, getattr(instance, "end", None)):
-        case (float(t1), float(t2)) if t1 == t2:
-            raise ValueError(f"{attribute} cannot be point values [a,a]")
-        case (float(t1), float(t2)) if t1 > t2:
-            raise ValueError(f"{attribute} [a,b] cannot have a > b")
-        case (float(t1), float(t2)) if t1 < 0 or t2 < 0:
-            raise ValueError(f"{attribute} cannot have negative bounds")
-        case _:
-            pass
+def check_start(instance: object, attribute: attrs.Attribute[T | None], value: T | None) -> None:
+    end: T | None = getattr(instance, "end", None)
+    if value is None or end is None:
+        return
+    if value == end:
+        raise ValueError(f"{attribute.name} cannot be point values [a,a]")
+    if value > end:
+        raise ValueError(f"{attribute.name} [a,b] cannot have a > b")

@@ -8,31 +8,15 @@ import attrs
 from attrs import frozen
 from typing_extensions import final, override
 
-from logic_asts.base import Expr, Not
-
-
-def _check_positive[T](_instance: object, attribute: attrs.Attribute[T | None], value: float | int | None) -> None:
-    if value is not None and value < 0:
-        raise ValueError(f"attribute {attribute} cannot have negative value")
-
-
-def _check_start[T](instance: object, attribute: attrs.Attribute[T | None], value: float | int | None) -> None:
-    match (value, getattr(instance, "end", None)):
-        case (float(t1), float(t2)) if t1 == t2:
-            raise ValueError(f"{attribute} cannot be point values [a,a]")
-        case (float(t1), float(t2)) if t1 > t2:
-            raise ValueError(f"{attribute} [a,b] cannot have a > b")
-        case (float(t1), float(t2)) if t1 < 0 or t2 < 0:
-            raise ValueError(f"{attribute} cannot have negative bounds")
-        case _:
-            pass
+from logic_asts.base import Expr
+from logic_asts.utils import check_positive, check_start
 
 
 @final
 @frozen
 class TimeInterval:
-    start: int | None = attrs.field(default=None, validator=[_check_positive, _check_start])
-    end: int | None = attrs.field(default=None, validator=[_check_positive])
+    start: None | int = attrs.field(default=None, validator=[check_positive, check_start])
+    end: int | None = attrs.field(default=None, validator=[check_positive])
 
     @override
     def __str__(self) -> str:
@@ -119,7 +103,7 @@ class Always(Expr):
 
     @override
     def expand(self) -> Expr:
-        return Not(Eventually(Not(self.arg), self.interval))
+        return ~Eventually(~self.arg, self.interval)
 
     @override
     def to_nnf(self) -> Expr:
