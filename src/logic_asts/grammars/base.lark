@@ -1,3 +1,5 @@
+?start: expr
+
 ?expr: impl_expr
 
 ?impl_expr: xor_expr 
@@ -10,15 +12,20 @@
 ?sum: product
     | sum ("|"|"||") product         -> add
 
-?product: atom
-        | product ("&"|"&&") atom    -> mul
+?product: unary
+        | product ("&"|"&&") unary    -> mul
+
+?unary: atom
+      | ("!"|"~") unary        -> neg
 
 ?atom: ("0"|"1"|"TRUE"|"FALSE")      -> literal
-     | ("!"|"~") atom                -> neg
-     | NAME                          -> var
+     | IDENTIFIER                    -> var
      | "(" expr ")"
 
-%import common.CNAME                 -> NAME
+IDENTIFIER: CNAME | ESCAPED_STRING
+
+%import common.CNAME
+%import common.ESCAPED_STRING
 %import common.WS
 
 %ignore WS
