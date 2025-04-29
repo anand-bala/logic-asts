@@ -1,0 +1,23 @@
+%import .base (expr, product, unary)
+
+?start: expr
+
+// Add temporal operators with higher precedence than & and |
+%override ?product: until_op
+                 | product ("&"|"&&")  until_op   -> mul
+
+?until_op: unary
+         | until_op ("until" | "U") [time_interval] unary -> until
+
+%extend ?unary: ("globally" | "G") [time_interval] unary    -> always
+                 | ("eventually" | "F") [time_interval] unary  -> eventually
+                 | ("next" | "X") [ "[" INT "]" ] unary        -> next
+
+
+time_interval: "[" [INT] "," [INT] "]"
+
+%import common.INT
+%import common.WS
+
+%ignore WS
+
