@@ -19,13 +19,14 @@
       | ("!"|"~") unary        -> neg
 
 ?atom: ("0"|"1"|"TRUE"|"FALSE")      -> literal
-     | IDENTIFIER                    -> var
+     | identifier                    -> var
      | "(" expr ")"
 
-IDENTIFIER: CNAME | ESCAPED_STRING
+identifier: CNAME | ESCAPED_STRING
+
+ESCAPED_STRING:  /(".*?(?<!\\)(\\\\)*?"|'.*?(?<!\\)(\\\\)*?')/i
 
 %import common.CNAME
-%import common.ESCAPED_STRING
 %import common.WS
 
 %ignore WS

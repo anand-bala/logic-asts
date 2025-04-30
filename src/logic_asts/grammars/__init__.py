@@ -42,6 +42,17 @@ class BaseTransform(Transformer[Token, Expr]):
             case "1" | "TRUE":
                 return Literal(True)
 
+    def CNAME(self, value: Token | str) -> str:  # noqa: N802
+        return str(value)
+
+    def ESCAPED_STRING(self, value: Token | str) -> str:  # noqa: N802
+        parsed = str(value)
+        # trim the quotes at the end
+        return parsed[1:-1]
+
+    def identifier(self, value: Token | str) -> str:
+        return str(value)
+
 
 @typing.final
 @v_args(inline=True)
