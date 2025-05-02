@@ -10,19 +10,19 @@ dev: uv.lock | .venv
 .PHONY: dev
 
 fmt:
-	uv run ruff format 
-	uv run ruff check --fix .
+	uv run --frozen ruff format 
+	uv run --frozen ruff check --fix .
 .PHONY: fmt
 
 typing:
-	uv run mypy src
+	uv run --frozen mypy src
 .PHONY: typing
 
 lint: fmt typing
 .PHONY: lint
 
 test:
-	uv run --dev pytest
+	uv run --dev --frozen pytest
 .PHONY: test
 
 uv.lock .venv &: pyproject.toml
