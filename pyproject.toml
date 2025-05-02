@@ -1,6 +1,6 @@
 [project]
 name = "logic-asts"
-version = "0.1.0"
+version = "0.2.0"
 description = "Grammars and parsers for various logic"
 readme = "README.md"
 authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
@@ -9,11 +9,11 @@ dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
 dev = [
-    "ipython>=9.2.0",
-    "mypy>=1.15.0",
-    "pytest>=8.3.5",
-    "rich>=14.0.0",
-    "ruff>=0.11.7",
+  "ipython>=9.2.0",
+  "mypy>=1.15.0",
+  "pytest>=8.3.5",
+  "rich>=14.0.0",
+  "ruff>=0.11.7",
 ]
 
 [build-system]
