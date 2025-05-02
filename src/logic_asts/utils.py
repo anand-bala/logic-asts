@@ -1,20 +1,20 @@
+# flake8: noqa: ANN401
+# pyright: reportExplicitAny=false
 from __future__ import annotations
 
 from numbers import Real
-from typing import TypeVar
+from typing import Any
 
 import attrs
 
-T = TypeVar("T", bound=Real)
 
-
-def check_positive(_instance: object, attribute: attrs.Attribute[T | None], value: T | None) -> None:
+def check_positive(_instance: Any, attribute: attrs.Attribute[None], value: Real | None) -> None:
     if value is not None and value < 0:
         raise ValueError(f"attribute {attribute.name} cannot have negative value ({value})")
 
 
-def check_start(instance: object, attribute: attrs.Attribute[T | None], value: T | None) -> None:
-    end: T | None = getattr(instance, "end", None)
+def check_start(instance: Any, attribute: attrs.Attribute[None], value: Real | None) -> None:
+    end: Real | None = getattr(instance, "end", None)
     if value is None or end is None:
         return
     if value == end:
