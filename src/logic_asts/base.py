@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import operator
-import typing
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from functools import reduce
+from typing import Self, final, override
 
 import attrs
 from attrs import field, frozen
-from typing_extensions import final, override
 
 
 class Expr(ABC):
@@ -18,6 +18,13 @@ class Expr(ABC):
 
     @abstractmethod
     def to_nnf(self) -> Expr: ...
+
+    @abstractmethod
+    def children(self) -> Iterator[Expr]: ...
+
+    @abstractmethod
+    def horizon(self) -> int | float:
+        """Compute the horizon of the formula. Returns `math.inf` if the formula is unbounded."""
 
     def __invert__(self) -> Expr:
         return Not(self)
@@ -47,6 +54,15 @@ class Implies(Expr):
     def to_nnf(self) -> Expr:
         return self.expand().to_nnf()
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        return max(self.lhs.horizon(), self.rhs.horizon())
+
 
 @final
 @frozen
@@ -68,6 +84,15 @@ class Equiv(Expr):
     def to_nnf(self) -> Expr:
         return self.expand().to_nnf()
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        return max(self.lhs.horizon(), self.rhs.horizon())
+
 
 @final
 @frozen
@@ -88,6 +113,15 @@ class Xor(Expr):
     @override
     def to_nnf(self) -> Expr:
         return self.expand().to_nnf()
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        return max(self.lhs.horizon(), self.rhs.horizon())
 
 
 @final
@@ -113,6 +147,14 @@ class And(Expr):
     def expand(self) -> Expr:
         return reduce(operator.__and__, (a.expand() for a in self.args), Literal(True))
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from self.args
+
+    @override
+    def horizon(self) -> int | float:
+        return max(arg.horizon() for arg in self.args)
+
 
 @final
 @frozen
@@ -136,6 +178,14 @@ class Or(Expr):
     @override
     def expand(self) -> Expr:
         return reduce(operator.__or__, (a.expand() for a in self.args), Literal(False))
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from self.args
+
+    @override
+    def horizon(self) -> int | float:
+        return max(arg.horizon() for arg in self.args)
 
 
 @final
@@ -172,6 +222,14 @@ class Not(Expr):
     def expand(self) -> Expr:
         return ~(self.arg.expand())
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return self.arg.horizon()
+
 
 @final
 @frozen
@@ -189,6 +247,14 @@ class Variable[Var](Expr):
     @override
     def expand(self) -> Expr:
         return self
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from ()
+
+    @override
+    def horizon(self) -> int | float:
+        return 0
 
 
 @final
@@ -225,12 +291,20 @@ class Literal(Expr):
             return other
 
     @override
-    def to_nnf(self) -> typing.Self:
+    def to_nnf(self) -> Self:
         return self
 
     @override
-    def expand(self) -> typing.Self:
+    def expand(self) -> Self:
         return self
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from ()
+
+    @override
+    def horizon(self) -> int | float:
+        return 0
 
 
 __all__ = [

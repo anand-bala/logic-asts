@@ -3,10 +3,10 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Iterator
+from typing import final, override
 
 import attrs
 from attrs import frozen
-from typing_extensions import final, override
 
 from logic_asts.base import And, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
 from logic_asts.utils import check_positive, check_start
@@ -15,7 +15,7 @@ from logic_asts.utils import check_positive, check_start
 @final
 @frozen
 class TimeInterval:
-    start: None | int = attrs.field(default=None, validator=[check_positive, check_start])
+    start: int | None = attrs.field(default=None, validator=[check_positive, check_start])
     end: int | None = attrs.field(default=None, validator=[check_positive])
 
     @override
@@ -25,6 +25,12 @@ class TimeInterval:
                 return ""
             case _:
                 return f"[{self.start or ''}, {self.end or ''}]"
+
+    def duration(self) -> int | float:
+        start = self.start or 0
+        end = self.end or math.inf
+
+        return end - start
 
     def is_unbounded(self) -> bool:
         return self.end is None or math.isinf(self.end)
@@ -90,12 +96,24 @@ class Next(Expr):
     def to_nnf(self) -> Expr:
         return Next(self.arg.to_nnf(), steps=self.steps)
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        arg_hrz = self.arg.horizon()
+        assert isinstance(arg_hrz, int) or math.isinf(arg_hrz), (
+            "`Next` cannot be used for continuous-time specifications, horizon cannot be computed"
+        )
+        return 1 + arg_hrz
+
 
 @final
 @frozen
 class Always(Expr):
     arg: Expr
-    interval: TimeInterval | None = None
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
 
     @override
     def __str__(self) -> str:
@@ -109,12 +127,20 @@ class Always(Expr):
     def to_nnf(self) -> Expr:
         return self.expand().to_nnf()
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return (self.interval.end or math.inf) + self.arg.horizon()
+
 
 @final
 @frozen
 class Eventually(Expr):
     arg: Expr
-    interval: TimeInterval | None = None
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
 
     @override
     def __str__(self) -> str:
@@ -123,7 +149,7 @@ class Eventually(Expr):
     @override
     def expand(self) -> Expr:
         match self.interval:
-            case None | TimeInterval(None, None) | TimeInterval(0, None):
+            case TimeInterval(None, None) | TimeInterval(0, None):
                 # Unbounded F
                 return Eventually(self.arg.expand())
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
@@ -134,7 +160,7 @@ class Eventually(Expr):
                     expr = expr & Next(arg)
                 return expr
             case TimeInterval(int(t1), None):
-                # F[t1,inf]
+                # F[t1, inf]
                 assert t1 > 0
                 return Next(Eventually(self.arg), t1).expand()
             case TimeInterval(int(t1), int(t2)):
@@ -150,13 +176,21 @@ class Eventually(Expr):
     def to_nnf(self) -> Expr:
         return Eventually(self.arg.to_nnf(), self.interval)
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return (self.interval.end or math.inf) + self.arg.horizon()
+
 
 @final
 @frozen
 class Until(Expr):
     lhs: Expr
     rhs: Expr
-    interval: TimeInterval | None = None
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
 
     @override
     def __str__(self) -> str:
@@ -171,12 +205,12 @@ class Until(Expr):
         new_lhs = self.lhs.expand()
         new_rhs = self.rhs.expand()
         match self.interval:
-            case None | TimeInterval(None | 0, None):
+            case TimeInterval(None | 0, None):
                 # Just make an unbounded one here
                 return Until(new_lhs, new_rhs)
             case TimeInterval(t1, None):  # Unbounded end
                 return Always(
-                    arg=Until(interval=None, lhs=new_lhs, rhs=new_rhs),
+                    arg=Until(lhs=new_lhs, rhs=new_rhs),
                     interval=TimeInterval(0, t1),
                 ).expand()
             case TimeInterval(t1, _):
@@ -184,6 +218,16 @@ class Until(Expr):
                 until_interval = TimeInterval(t1, None)
                 z2 = Until(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
                 return z1 & z2
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        end = self.interval.end or math.inf
+        return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
 
 
 __all__ = [

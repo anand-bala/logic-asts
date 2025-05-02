@@ -9,6 +9,7 @@ def test_base_logic() -> None:
     expected = Equiv(Variable("x1"), Variable("x2")) | Variable("x3")
     parsed = logic_asts.parse_expr(expr, syntax="base")
     assert parsed == expected, (parsed, expected)
+    assert parsed.horizon() == expected.horizon() == 0
 
 
 @pytest.mark.parametrize(
@@ -20,3 +21,4 @@ def test_parse_large_expr(n: int) -> None:
     expected: Expr = And([Equiv(Variable(f"x{i}"), Variable(f"y{i}")) for i in range(n)])
     parsed = logic_asts.parse_expr(expr, syntax="base")
     assert parsed == expected
+    assert parsed.horizon() == expected.horizon() == 0

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import shlex
+from collections.abc import Iterator
+from typing import final, override
 
 import attrs
 from attrs import frozen
-from typing_extensions import final, override
 
 from logic_asts.base import And, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
 from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
@@ -46,6 +47,14 @@ class Everywhere(Expr):
     def to_nnf(self) -> Expr:
         return Everywhere(self.arg.to_nnf(), self.interval, self.dist_fn)
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return self.arg.horizon()
+
 
 @final
 @frozen
@@ -67,6 +76,14 @@ class Somewhere(Expr):
     def to_nnf(self) -> Expr:
         return Somewhere(self.arg.to_nnf(), self.interval, self.dist_fn)
 
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return self.arg.horizon()
+
 
 @final
 @frozen
@@ -87,6 +104,14 @@ class Escape(Expr):
     @override
     def to_nnf(self) -> Expr:
         return Escape(self.arg.to_nnf(), self.interval, self.dist_fn)
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        return self.arg.horizon()
 
 
 @final
@@ -119,6 +144,15 @@ class Reach(Expr):
             interval=self.interval,
             dist_fn=self.dist_fn,
         )
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        return max(self.lhs.horizon(), self.rhs.horizon())
 
 
 __all__ = [

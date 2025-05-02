@@ -62,12 +62,15 @@ class LtlTransform(Transformer[Token, Expr]):
         return lhs & rhs
 
     def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+        interval = interval or TimeInterval()
         return Until(lhs, rhs, interval)
 
     def always(self, interval: TimeInterval | None, arg: Expr) -> Expr:
+        interval = interval or TimeInterval()
         return Always(arg, interval)
 
     def eventually(self, interval: TimeInterval | None, arg: Expr) -> Expr:
+        interval = interval or TimeInterval()
         return Eventually(arg, interval)
 
     def next(self, steps: int | None, arg: Expr) -> Expr:
