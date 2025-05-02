@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "Grammars and parsers for various logic"
 readme = "README.md"
 authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
@@ -44,7 +44,7 @@ extend-ignore = ["F722", "PYI041"]
 "*.pyi" = ["B", "E501", "E701"]
 
 [tool.pyright]
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 pythonPlatform = "All"
 reportUnknownMemberType = false
 reportUnknownParameterType = false

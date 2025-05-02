@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Iterator
-from typing import final, override
+from typing import final
 
 import attrs
 from attrs import frozen
+from typing_extensions import override
 
 from logic_asts.base import And, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
 from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until

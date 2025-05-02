@@ -43,7 +43,7 @@ class SupportedGrammars(enum.StrEnum):
         return transformer
 
 
-type SupportedGrammarsStr = typing.Literal["base", "ltl", "strel"]
+SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel"]
 
 
 def parse_expr(

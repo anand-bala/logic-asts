@@ -4,10 +4,11 @@ import operator
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from functools import reduce
-from typing import Self, final, override
+from typing import Generic, Self, TypeVar, final
 
 import attrs
 from attrs import field, frozen
+from typing_extensions import override
 
 
 class Expr(ABC):
@@ -231,9 +232,12 @@ class Not(Expr):
         return self.arg.horizon()
 
 
+Var = TypeVar("Var")
+
+
 @final
 @frozen
-class Variable[Var](Expr):
+class Variable(Expr, Generic[Var]):
     name: Var
 
     @override
