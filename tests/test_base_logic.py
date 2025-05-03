@@ -1,7 +1,10 @@
+import operator
+from functools import reduce
+
 import pytest
 
 import logic_asts
-from logic_asts.base import And, Equiv, Expr, Variable
+from logic_asts.base import Equiv, Expr, Variable
 
 
 def test_base_logic() -> None:
@@ -18,7 +21,7 @@ def test_base_logic() -> None:
 )
 def test_parse_large_expr(n: int) -> None:
     expr = " & ".join((f"(x{i} <-> y{i})" for i in range(n)))
-    expected: Expr = And([Equiv(Variable(f"x{i}"), Variable(f"y{i}")) for i in range(n)])
+    expected: Expr = reduce(operator.__and__, (Equiv(Variable(f"x{i}"), Variable(f"y{i}")) for i in range(n)))
     parsed = logic_asts.parse_expr(expr, syntax="base")
     assert parsed == expected
     assert parsed.horizon() == expected.horizon() == 0
