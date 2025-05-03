@@ -21,6 +21,38 @@ class Expr(ABC):
     @abstractmethod
     def children(self) -> Iterator[Expr]: ...
 
+    def iter_subtree(self) -> Iterator[Expr]:
+        """Post-order traversal of the expression.
+
+        Iterates over all the sub-expressions of the formula, never returning to
+        the same sub-expression twice.
+        """
+        stack: deque[Expr] = deque([self])
+        visited: set[Expr] = set()
+
+        while stack:
+            subexpr = stack[-1]
+            need_to_visit_children = {
+                child
+                for child in subexpr.children()  # We need to visit `child`
+                if (child) not in visited  # if it hasn't already been visited
+            }
+
+            if visited.issuperset(need_to_visit_children):
+                # subexpr is a leaf (the set is empty) or it's children have been
+                # yielded get rid of it from the stack
+                _ = stack.pop()
+                # Add subexpr to visited
+                visited.add(subexpr)
+                # post-order return it
+                yield subexpr
+            else:
+                # mid-level node or an empty set
+                # Add relevant children to stack
+                stack.extend(need_to_visit_children)
+        # Yield the remaining nodes in the stack in reverse order
+        yield from reversed(stack)
+
     @abstractmethod
     def horizon(self) -> int | float:
         """Compute the horizon of the formula. Returns `math.inf` if the formula is unbounded."""
