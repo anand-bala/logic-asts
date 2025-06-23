@@ -1,6 +1,6 @@
 [project]
 name = "logic-asts"
-version = "0.3.2"
+version = "0.3.3"
 description = "Grammars and parsers for various logic"
 readme = "README.md"
 authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
