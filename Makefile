@@ -16,6 +16,7 @@ fmt:
 
 typing:
 	uv run --frozen mypy src
+	uvx basedpyright
 .PHONY: typing
 
 lint: fmt typing
