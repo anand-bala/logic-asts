@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator
-from typing import Generic, Self, TypeVar, final
+from typing import Generic, TypeVar, final
 
 from attrs import frozen
-from typing_extensions import override
+from typing_extensions import Self, override
 
 
 class Expr(ABC):

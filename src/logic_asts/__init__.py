@@ -10,16 +10,16 @@ from logic_asts.grammars import BaseTransform, LtlTransform, StrelTransform
 
 
 @enum.unique
-class SupportedGrammars(enum.StrEnum):
-    BASE = enum.auto()
+class SupportedGrammars(enum.Enum):
+    BASE = "base"
     """Base Boolean propositional logic, without quantifiers or modal operators"""
-    LTL = enum.auto()
+    LTL = "ltl"
     """Linear Temporal Logic"""
-    STREL = enum.auto()
+    STREL = "strel"
     """Spatio-Temporal Reach Escape Logic"""
 
     def get_transformer(self) -> Transformer[Token, Expr]:
-        syntax = str(self)
+        syntax = str(self.value)
 
         transformer: Transformer[Token, Expr]
         match syntax:
@@ -55,7 +55,7 @@ def parse_expr(
 
     grammar = Lark.open_from_package(
         __name__,
-        f"{str(syntax)}.lark",
+        f"{str(syntax.value)}.lark",
         ["grammars"],
     )
     transformer = syntax.get_transformer()

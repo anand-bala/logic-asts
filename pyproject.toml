@@ -4,17 +4,11 @@ version = "0.3.3"
 description = "Grammars and parsers for various logic"
 readme = "README.md"
 authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
-dev = [
-  "ipython>=9.2.0",
-  "mypy>=1.15.0",
-  "pytest>=8.3.5",
-  "rich>=14.0.0",
-  "ruff>=0.11.7",
-]
+dev = ["ipython", "mypy", "pytest", "rich", "ruff"]
 
 [build-system]
 requires = ["hatchling"]
@@ -44,7 +38,7 @@ extend-ignore = ["F722", "PYI041"]
 "*.pyi" = ["B", "E501", "E701"]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.10"
 pythonPlatform = "All"
 reportUnknownMemberType = false
 reportUnknownParameterType = false
