@@ -4,7 +4,23 @@ from functools import reduce
 import pytest
 
 import logic_asts
-from logic_asts.base import Equiv, Expr, Variable
+from logic_asts.base import Equiv, Expr, Literal, Variable
+
+
+@pytest.mark.parametrize(
+    ["expr", "expected"],
+    [
+        ("0", Literal(False)),
+        ("1", Literal(True)),
+        # ("False", Literal(False)),
+        # ("True", Literal(True)),
+        # ("FALSE", Literal(False)),
+        # ("TRUE", Literal(True)),
+    ],
+)
+def test_atoms(expr: str, expected: Expr) -> None:
+    parsed = logic_asts.parse_expr(expr, syntax="base")
+    assert parsed == expected, (parsed, expected)
 
 
 def test_base_logic() -> None:
@@ -25,3 +41,7 @@ def test_parse_large_expr(n: int) -> None:
     parsed = logic_asts.parse_expr(expr, syntax="base")
     assert parsed == expected
     assert parsed.horizon() == expected.horizon() == 0
+
+
+if __name__ == "__main__":
+    test_atoms("0", Literal(False))

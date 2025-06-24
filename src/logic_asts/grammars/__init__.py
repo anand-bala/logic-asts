@@ -36,12 +36,15 @@ class BaseTransform(Transformer[Token, Expr]):
     def var(self, value: Token | str) -> Expr:
         return Variable(str(value))
 
-    def literal(self, value: typing.Literal["0", "1", "TRUE", "FALSE"]) -> Expr:
+    def literal(self, value: Token | str) -> Expr:
+        value = str(value)
         match value:
             case "0" | "FALSE":
                 return Literal(False)
             case "1" | "TRUE":
                 return Literal(True)
+            case _:
+                raise RuntimeError(f"unknown literal string: {value}")
 
     def CNAME(self, value: Token | str) -> str:  # noqa: N802
         return str(value)

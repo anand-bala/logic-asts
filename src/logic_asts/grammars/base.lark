@@ -18,9 +18,12 @@
 ?unary: atom
       | ("!"|"~") unary        -> neg
 
-?atom: ("0"|"1"|"TRUE"|"FALSE")      -> literal
+?atom: (TRUE | FALSE)           -> literal
      | identifier                    -> var
      | "(" expr ")"
+
+TRUE: ("1" | "TRUE" | "True" | "true")
+FALSE: ("0" | "FALSE" | "False" | "false")
 
 identifier: CNAME | ESCAPED_STRING
 
