@@ -1,3 +1,5 @@
+# mypy: disable-error-code="no-untyped-call"
+
 from __future__ import annotations
 
 import enum
@@ -56,10 +58,10 @@ class BaseTransform(Transformer[Token, Expr]):
         # trim the quotes at the end
         return parsed[1:-1]
 
-    def TRUE(self, value: Token | str) -> Literal:  # noqa: N802
+    def TRUE(self, _value: Token | str) -> Literal:  # noqa: N802
         return Literal(True)
 
-    def FALSE(self, value: Token | str) -> Literal:  # noqa: N802
+    def FALSE(self, _value: Token | str) -> Literal:  # noqa: N802
         return Literal(False)
 
     def IDENTIFIER(self, value: Token | str) -> Variable[str]:  # noqa: N802
