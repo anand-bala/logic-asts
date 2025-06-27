@@ -16,13 +16,17 @@
 
 // NOTE
 // ----
-// ltl__base__identifier is implicit when we import .ltl as identifier is defined in
+// ltl__base__IDENTIFIER is implicit when we import .ltl as IDENTIFIER is defined in
 // .base and .ltl imports .base
 //
 // REMEMBER YOUR *LINEAR* INHERITANCE HIERARCHIES
-dist_fn: ltl__base__identifier
+dist_fn: IDENTIFIER
 dist_interval: "[" [NUMBER] "," [NUMBER] "]"
 
-%import common.WS
+IDENTIFIER: CNAME | ESCAPED_STRING
+ESCAPED_STRING:  /(".*?(?<!\\)(\\\\)*?"|'.*?(?<!\\)(\\\\)*?')/i
+
+%import common.CNAME
 %import common.NUMBER
+%import common.WS
 %ignore WS

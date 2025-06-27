@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import enum
 import typing
 from pathlib import Path
 
 from lark import Token, Transformer, v_args
+from lark.visitors import merge_transformers
 
 from logic_asts.base import Equiv, Expr, Implies, Literal, Variable, Xor
 from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
@@ -54,8 +56,14 @@ class BaseTransform(Transformer[Token, Expr]):
         # trim the quotes at the end
         return parsed[1:-1]
 
-    def identifier(self, value: Token | str) -> str:
-        return str(value)
+    def TRUE(self, value: Token | str) -> Literal:  # noqa: N802
+        return Literal(True)
+
+    def FALSE(self, value: Token | str) -> Literal:  # noqa: N802
+        return Literal(False)
+
+    def IDENTIFIER(self, value: Token | str) -> Variable[str]:  # noqa: N802
+        return Variable(str(value))
 
 
 @typing.final
@@ -112,3 +120,37 @@ class StrelTransform(Transformer[Token, Expr]):
 
     def NUMBER(self, value: Token | float) -> float:  # noqa: N802
         return float(value)
+
+
+@enum.unique
+class SupportedGrammars(enum.Enum):
+    BASE = "base"
+    """Base Boolean propositional logic, without quantifiers or modal operators"""
+    LTL = "ltl"
+    """Linear Temporal Logic"""
+    STREL = "strel"
+    """Spatio-Temporal Reach Escape Logic"""
+
+    def get_transformer(self) -> Transformer[Token, Expr]:
+        syntax = str(self.value)
+
+        transformer: Transformer[Token, Expr]
+        match syntax:
+            case "base":
+                transformer = BaseTransform()
+            case "ltl":
+                transformer = merge_transformers(
+                    LtlTransform(),
+                    base=BaseTransform(),
+                )
+            case "strel":
+                transformer = merge_transformers(
+                    StrelTransform(),
+                    ltl=merge_transformers(
+                        LtlTransform(),
+                        base=BaseTransform(),
+                    ),
+                )
+            case _:
+                raise ValueError(f"Unsupported grammar reference: {syntax}")
+        return transformer

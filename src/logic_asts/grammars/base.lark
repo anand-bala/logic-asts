@@ -13,19 +13,18 @@
     | sum ("|"|"||") product         -> add
 
 ?product: unary
-        | product ("&"|"&&") unary    -> mul
+        | product ("&"|"&&") unary   -> mul
 
 ?unary: atom
-      | ("!"|"~") unary        -> neg
+      | ("!"|"~") unary              -> neg
 
-?atom: (TRUE | FALSE)           -> literal
-     | identifier                    -> var
+?atom: (TRUE | FALSE)
+     | IDENTIFIER
      | "(" expr ")"
 
 TRUE: ("1" | "TRUE" | "True" | "true")
 FALSE: ("0" | "FALSE" | "False" | "false")
-
-identifier: CNAME | ESCAPED_STRING
+IDENTIFIER: CNAME | ESCAPED_STRING
 
 ESCAPED_STRING:  /(".*?(?<!\\)(\\\\)*?"|'.*?(?<!\\)(\\\\)*?')/i
 

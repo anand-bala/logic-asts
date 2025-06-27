@@ -12,10 +12,10 @@ from logic_asts.base import Equiv, Expr, Literal, Variable
     [
         ("0", Literal(False)),
         ("1", Literal(True)),
-        # ("False", Literal(False)),
-        # ("True", Literal(True)),
-        # ("FALSE", Literal(False)),
-        # ("TRUE", Literal(True)),
+        ("False", Literal(False)),
+        ("True", Literal(True)),
+        ("FALSE", Literal(False)),
+        ("TRUE", Literal(True)),
     ],
 )
 def test_atoms(expr: str, expected: Expr) -> None:
