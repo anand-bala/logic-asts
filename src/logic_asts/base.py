@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import operator
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator
+from functools import reduce
 from typing import Generic, TypeVar, final
 
-from attrs import frozen
+import attrs
+from attrs import field, frozen
 from typing_extensions import Self, override
 
 
@@ -61,10 +64,10 @@ class Expr(ABC):
         return Not(self)
 
     def __and__(self, other: Expr) -> Expr:
-        return And(self, other)
+        return And((self, other))
 
     def __or__(self, other: Expr) -> Expr:
-        return Or(self, other)
+        return Or((self, other))
 
 
 @final
@@ -158,57 +161,65 @@ class Xor(Expr):
 @final
 @frozen
 class And(Expr):
-    lhs: Expr
-    rhs: Expr
+    args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
-        return f"({self.lhs} & {self.rhs})"
+        return "(" + " & ".join(str(arg) for arg in self.children()) + ")"
 
     @override
     def to_nnf(self) -> Expr:
-        return self.lhs.to_nnf() & self.rhs.to_nnf()
+        return reduce(operator.__and__, (a.to_nnf() for a in self.args))
 
     @override
     def expand(self) -> Expr:
-        return self.lhs.expand() & self.rhs.expand()
+        return reduce(operator.__and__, (a.expand() for a in self.args), Literal(True))
 
     @override
     def children(self) -> Iterator[Expr]:
-        yield self.lhs
-        yield self.rhs
+        yield from self.args
 
     @override
     def horizon(self) -> int | float:
-        return max(self.lhs.horizon(), self.rhs.horizon())
+        return max(arg.horizon() for arg in self.args)
+
+    @override
+    def __and__(self, other: Expr) -> Expr:
+        if isinstance(other, And):
+            return And(self.args + other.args)
+        return And(self.args + (other,))
 
 
 @final
 @frozen
 class Or(Expr):
-    lhs: Expr
-    rhs: Expr
+    args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
-        return f"({self.lhs} | {self.rhs})"
+        return "(" + " | ".join(str(arg) for arg in self.children()) + ")"
 
     @override
     def to_nnf(self) -> Expr:
-        return self.lhs.to_nnf() | self.rhs.to_nnf()
+        return reduce(operator.__or__, (a.to_nnf() for a in self.args))
 
     @override
     def expand(self) -> Expr:
-        return self.lhs.expand() | self.rhs.expand()
+        return reduce(operator.__or__, (a.expand() for a in self.args), Literal(True))
 
     @override
     def children(self) -> Iterator[Expr]:
-        yield self.lhs
-        yield self.rhs
+        yield from self.args
 
     @override
     def horizon(self) -> int | float:
-        return max(self.lhs.horizon(), self.rhs.horizon())
+        return max(arg.horizon() for arg in self.args)
+
+    @override
+    def __or__(self, other: Expr) -> Expr:
+        if isinstance(other, Or):
+            return Or(self.args + other.args)
+        return Or(self.args + (other,))
 
 
 @final
@@ -234,10 +245,10 @@ class Not(Expr):
                 return self
             case Not(expr):
                 return expr.to_nnf()
-            case And(a, b):
-                return (~a).to_nnf() | (~b).to_nnf()
-            case Or(a, b):
-                return (~a).to_nnf() & (~b).to_nnf()
+            case And(args):
+                return reduce(operator.__or__, [(~a).to_nnf() for a in args], Literal(False))
+            case Or(args):
+                return reduce(operator.__and__, [(~a).to_nnf() for a in args], Literal(True))
             case _:
                 return arg.to_nnf()
 
