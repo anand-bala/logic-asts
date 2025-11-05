@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import enum
 import typing
-from collections.abc import Iterable
 from pathlib import Path
 
 from lark import Token, Transformer, v_args

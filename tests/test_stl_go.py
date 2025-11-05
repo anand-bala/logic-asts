@@ -61,7 +61,7 @@ class TestWeightInterval:
     def test_weight_interval_invalid(self) -> None:
         """Test invalid weight intervals."""
         with pytest.raises(ValueError):
-            WeightInterval(2.5, 0.5)  # start > end
+            _ = WeightInterval(2.5, 0.5)  # start > end
 
     def test_weight_interval_negative_start(self) -> None:
         """Test weight intervals with negative start."""
@@ -99,12 +99,12 @@ class TestEdgeCountInterval:
     def test_edge_count_interval_invalid(self) -> None:
         """Test invalid edge count intervals."""
         with pytest.raises(ValueError):
-            EdgeCountInterval(5, 1)  # start > end
+            _ = EdgeCountInterval(5, 1)  # start > end
 
     def test_edge_count_interval_negative(self) -> None:
         """Test that negative values are rejected."""
         with pytest.raises(ValueError):
-            EdgeCountInterval(-1, 5)
+            _ = EdgeCountInterval(-1, 5)
 
 
 class TestQuantifier:
