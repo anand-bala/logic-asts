@@ -157,7 +157,7 @@ wheels = [
 
 [[package]]
 name = "logic-asts"
-version = "0.4.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
@@ -190,7 +190,7 @@ dev = [
     { name = "pytest" },
     { name = "rich" },
     { name = "ruff" },
-    { name = "zuban", specifier = ">=0.2.2" },
+    { name = "zuban" },
 ]
 
 [[package]]
