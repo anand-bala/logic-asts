@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import operator
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator
-from functools import reduce
 from typing import Generic, TypeVar, final
 
 import attrs
@@ -169,11 +167,15 @@ class And(Expr):
 
     @override
     def to_nnf(self) -> Expr:
-        return reduce(operator.__and__, (a.to_nnf() for a in self.args))
+        acc: Expr = Literal(True)
+        [acc := acc & a.to_nnf() for a in self.args]
+        return acc
 
     @override
     def expand(self) -> Expr:
-        return reduce(operator.__and__, (a.expand() for a in self.args), Literal(True))
+        acc: Expr = Literal(True)
+        [acc := acc & a.expand() for a in self.args]
+        return acc
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -201,11 +203,15 @@ class Or(Expr):
 
     @override
     def to_nnf(self) -> Expr:
-        return reduce(operator.__or__, (a.to_nnf() for a in self.args))
+        acc: Expr = Literal(False)
+        [acc := acc | a.to_nnf() for a in self.args]
+        return acc
 
     @override
     def expand(self) -> Expr:
-        return reduce(operator.__or__, (a.expand() for a in self.args), Literal(True))
+        acc: Expr = Literal(False)
+        [acc := acc | a.expand() for a in self.args]
+        return acc
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -238,6 +244,7 @@ class Not(Expr):
     @override
     def to_nnf(self) -> Expr:
         arg = self.arg
+        ret: Expr
         match arg:
             case Literal():
                 return ~arg
@@ -246,9 +253,13 @@ class Not(Expr):
             case Not(expr):
                 return expr.to_nnf()
             case And(args):
-                return reduce(operator.__or__, [(~a).to_nnf() for a in args], Literal(False))
+                ret = Literal(False)
+                [ret := ret | (~a).to_nnf() for a in args]
+                return ret
             case Or(args):
-                return reduce(operator.__and__, [(~a).to_nnf() for a in args], Literal(True))
+                ret = Literal(True)
+                [ret := ret & (~a).to_nnf() for a in args]
+                return ret
             case _:
                 return arg.to_nnf()
 

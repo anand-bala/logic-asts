@@ -1,0 +1,39 @@
+%import .ltl (expr, product, unary)
+
+?start: expr
+
+// Extend unary to include graph operators
+// Syntax: in^[W1,W2]{quantifier}_{G}[E1,E2] formula
+%extend ?unary: "in" "^" weight_interval "{" quantifier "}" "_{" graph_list "}" edge_count_interval unary  -> graph_incoming
+              | "out" "^" weight_interval "{" quantifier "}" "_{" graph_list "}" edge_count_interval unary -> graph_outgoing
+
+// Intervals and sets
+weight_interval: "[" [weight_bound] "," [weight_bound] "]"
+
+weight_bound: NUMBER
+            | NEG_INF
+            | INF
+
+edge_count_interval: "[" [INT] "," [INT] "]"
+
+graph_list: graph_type ("," graph_type)*
+graph_type: IDENTIFIER
+
+// Quantifiers (ASCII variants for convenience)
+quantifier: ("E" | "exists")  -> exists_q
+          | ("A" | "forall")  -> forall_q
+
+// Terminals for infinity
+INF: "inf"
+NEG_INF: "-inf"
+
+// Identifiers for graph types
+IDENTIFIER: CNAME | ESCAPED_STRING
+ESCAPED_STRING:  /(".*?(?<!\\)(\\\\)*?"|'.*?(?<!\\)(\\\\)*?')/i
+
+%import common.CNAME
+%import common.NUMBER
+%import common.INT
+%import common.WS
+
+%ignore WS

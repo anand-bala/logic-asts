@@ -6,7 +6,7 @@ from lark import Lark, Transformer
 from logic_asts.base import Expr
 from logic_asts.grammars import SupportedGrammars
 
-SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel"]
+SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel", "stl_go"]
 
 
 def parse_expr(

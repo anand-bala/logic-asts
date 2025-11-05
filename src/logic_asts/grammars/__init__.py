@@ -11,6 +11,7 @@ from lark.visitors import merge_transformers
 
 from logic_asts.base import Equiv, Expr, Implies, Literal, Variable, Xor
 from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
+from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
 
 GRAMMARS_DIR = Path(__file__).parent
@@ -124,6 +125,114 @@ class StrelTransform(Transformer[Token, Expr]):
         return float(value)
 
 
+@typing.final
+class StlGoTransform(Transformer[Token, Expr]):
+    """Transformer for STL-GO grammar, extending LTL transformations."""
+
+    @v_args(inline=True)
+    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+        return lhs & rhs
+
+    @v_args(inline=True)
+    def graph_incoming(
+        self,
+        weight_interval: WeightInterval,
+        quantifier: Quantifier,
+        graphs: frozenset[str],
+        edge_count: EdgeCountInterval,
+        arg: Expr,
+    ) -> Expr:
+        return GraphIncoming(
+            arg=arg,
+            graphs=graphs,
+            edge_count=edge_count,
+            weights=weight_interval,
+            quantifier=quantifier,
+        )
+
+    @v_args(inline=True)
+    def graph_outgoing(
+        self,
+        weight_interval: WeightInterval,
+        quantifier: Quantifier,
+        graphs: frozenset[str],
+        edge_count: EdgeCountInterval,
+        arg: Expr,
+    ) -> Expr:
+        return GraphOutgoing(
+            arg=arg,
+            graphs=graphs,
+            edge_count=edge_count,
+            weights=weight_interval,
+            quantifier=quantifier,
+        )
+
+    @v_args(inline=True)
+    def weight_interval(self, start: float | None, end: float | None) -> WeightInterval:
+        """Parse weight interval.
+
+        Handles:
+        - [None, None]: unbounded interval
+        - [n1, n2]: bounded interval
+        - None values are converted to actual infinities by WeightInterval
+        """
+        return WeightInterval(start, end)
+
+    @v_args(inline=True)
+    def weight_bound(self, value: float) -> float | None:
+        return float(value)
+
+    @v_args(inline=True)
+    def edge_count_interval(self, start: int | None, end: int | None) -> EdgeCountInterval:
+        """Parse edge count interval.
+
+        Handles:
+        - [None, None]: unbounded interval
+        - [n1, n2]: bounded interval
+        """
+        return EdgeCountInterval(start, end)
+
+    def graph_list(self, graph_types: str | list[str]) -> frozenset[str]:
+        """Convert list of graph type identifiers to frozenset."""
+        # graph_types can be a list or individual items depending on grammar
+        if isinstance(graph_types, list):
+            return frozenset(graph_types)
+        return frozenset([graph_types] if graph_types else [])
+
+    @v_args(inline=True)
+    def graph_type(self, identifier: str) -> str:
+        """Pass through graph type identifier."""
+        return identifier
+
+    @v_args(inline=False)
+    def exists_q(self, _: Token) -> Quantifier:
+        """Quantifier: exists"""
+        return Quantifier.EXISTS
+
+    @v_args(inline=False)
+    def forall_q(self, _: Token) -> Quantifier:
+        """Quantifier: forall"""
+        return Quantifier.FORALL
+
+    def IDENTIFIER(self, value: Token | str) -> str:  # noqa: N802
+        """Convert identifier token to string."""
+        return str(value)
+
+    def NUMBER(self, value: Token | float) -> float:  # noqa: N802
+        """Convert NUMBER token to float."""
+        return float(value)
+
+    def INF(self, value: Token | float) -> float:  # noqa: N802
+        return float(value)
+
+    def NEG_INF(self, value: Token | float) -> float:  # noqa: N802
+        return float(value)
+
+    def INT(self, value: Token | int) -> int:  # noqa: N802
+        """Convert INT token to int."""
+        return int(value)
+
+
 @enum.unique
 class SupportedGrammars(enum.Enum):
     BASE = "base"
@@ -132,6 +241,8 @@ class SupportedGrammars(enum.Enum):
     """Linear Temporal Logic"""
     STREL = "strel"
     """Spatio-Temporal Reach Escape Logic"""
+    STL_GO = "stl_go"
+    """Spatio-Temporal Logic with Graph Operators"""
 
     def get_transformer(self) -> Transformer[Token, Expr]:
         syntax = str(self.value)
@@ -148,6 +259,14 @@ class SupportedGrammars(enum.Enum):
             case "strel":
                 transformer = merge_transformers(
                     StrelTransform(),
+                    ltl=merge_transformers(
+                        LtlTransform(),
+                        base=BaseTransform(),
+                    ),
+                )
+            case "stl_go":
+                transformer = merge_transformers(
+                    StlGoTransform(),
                     ltl=merge_transformers(
                         LtlTransform(),
                         base=BaseTransform(),
