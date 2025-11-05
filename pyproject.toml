@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
-dev = ["ipython", "mypy", "pytest", "rich", "ruff"]
+dev = ["ipython", "mypy", "pytest", "rich", "ruff", "zuban"]
 
 [build-system]
 requires = ["hatchling"]
