@@ -129,7 +129,7 @@ class GraphIncoming(Expr):
     """
 
     arg: Expr
-    graphs: frozenset[str] = attrs.field(converter=frozenset)
+    graphs: tuple[str, ...] = attrs.field(converter=tuple)
     edge_count: EdgeCountInterval
     weights: WeightInterval
     quantifier: Quantifier
@@ -192,7 +192,7 @@ class GraphOutgoing(Expr):
     """
 
     arg: Expr
-    graphs: frozenset[str] = attrs.field(converter=frozenset)
+    graphs: tuple[str, ...] = attrs.field(converter=tuple)
     edge_count: EdgeCountInterval
     weights: WeightInterval
     quantifier: Quantifier

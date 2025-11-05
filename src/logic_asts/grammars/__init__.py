@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import enum
 import typing
+from collections.abc import Iterable
 from pathlib import Path
 
 from lark import Token, Transformer, v_args
@@ -138,7 +139,7 @@ class StlGoTransform(Transformer[Token, Expr]):
         self,
         weight_interval: WeightInterval,
         quantifier: Quantifier,
-        graphs: frozenset[str],
+        graphs: Iterable[str],
         edge_count: EdgeCountInterval,
         arg: Expr,
     ) -> Expr:
@@ -155,7 +156,7 @@ class StlGoTransform(Transformer[Token, Expr]):
         self,
         weight_interval: WeightInterval,
         quantifier: Quantifier,
-        graphs: frozenset[str],
+        graphs: Iterable[str],
         edge_count: EdgeCountInterval,
         arg: Expr,
     ) -> Expr:
@@ -192,12 +193,11 @@ class StlGoTransform(Transformer[Token, Expr]):
         """
         return EdgeCountInterval(start, end)
 
-    def graph_list(self, graph_types: str | list[str]) -> frozenset[str]:
-        """Convert list of graph type identifiers to frozenset."""
+    def graph_list(self, graph_types: str | list[str]) -> tuple[str, ...]:
         # graph_types can be a list or individual items depending on grammar
         if isinstance(graph_types, list):
-            return frozenset(graph_types)
-        return frozenset([graph_types] if graph_types else [])
+            return tuple(graph_types)
+        return (graph_types,) if graph_types else ()
 
     @v_args(inline=True)
     def graph_type(self, identifier: str) -> str:

@@ -137,7 +137,7 @@ class TestGraphIncoming:
         p = Variable("p")
         wi = WeightInterval(0.5, 2.5)
         ei = EdgeCountInterval(1, 5)
-        graphs = frozenset(["c", "s"])
+        graphs = tuple(["c", "s"])
 
         gi = GraphIncoming(
             arg=p,
@@ -158,7 +158,7 @@ class TestGraphIncoming:
         p = Variable("p")
         wi = WeightInterval(0.5, 2.5)
         ei = EdgeCountInterval(1, 5)
-        graphs = frozenset(["c"])
+        graphs = tuple(["c"])
 
         gi = GraphIncoming(
             arg=p,
@@ -181,7 +181,7 @@ class TestGraphIncoming:
 
         gi = GraphIncoming(
             arg=p,
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.EXISTS,
@@ -199,7 +199,7 @@ class TestGraphIncoming:
 
         gi = GraphIncoming(
             arg=p,
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.EXISTS,
@@ -215,7 +215,7 @@ class TestGraphIncoming:
 
         gi = GraphIncoming(
             arg=Not(p),
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.EXISTS,
@@ -234,7 +234,7 @@ class TestGraphIncoming:
 
         gi = GraphIncoming(
             arg=p,
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.EXISTS,
@@ -256,7 +256,7 @@ class TestGraphOutgoing:
 
         go = GraphOutgoing(
             arg=p,
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.FORALL,
@@ -273,7 +273,7 @@ class TestGraphOutgoing:
 
         go = GraphOutgoing(
             arg=p,
-            graphs=frozenset(["s"]),
+            graphs=tuple(["s"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.FORALL,
@@ -296,7 +296,7 @@ class TestSTLGoParser:
         assert isinstance(result.arg, Variable)
         assert isinstance(result.arg.name, str)
         assert result.arg.name == "p"
-        assert result.graphs == frozenset(["c"])
+        assert result.graphs == tuple(["c"])
         assert result.quantifier == Quantifier.EXISTS
 
     def test_parse_graph_outgoing(self) -> None:
@@ -305,7 +305,7 @@ class TestSTLGoParser:
 
         assert isinstance(result, GraphOutgoing)
         assert isinstance(result.arg, Variable)
-        assert result.graphs == frozenset(["s"])
+        assert result.graphs == tuple(["s"])
         assert result.quantifier == Quantifier.FORALL
 
     def test_parse_multiple_graph_types(self) -> None:
@@ -313,7 +313,7 @@ class TestSTLGoParser:
         result = parse_expr("in^[0,1]{E}_{c,s,m}[1,5] p", syntax="stl_go")
 
         assert isinstance(result, GraphIncoming)
-        assert result.graphs == frozenset(["c", "s", "m"])
+        assert result.graphs == tuple(["c", "s", "m"])
 
     def test_parse_weight_interval_bounds(self) -> None:
         """Test parsing various weight interval bounds."""
@@ -411,7 +411,7 @@ class TestSTLGoProperties:
 
         gi = GraphIncoming(
             arg=f_p,
-            graphs=frozenset(["c"]),
+            graphs=tuple(["c"]),
             edge_count=ei,
             weights=wi,
             quantifier=Quantifier.EXISTS,
