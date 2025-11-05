@@ -129,7 +129,7 @@ class GraphIncoming(Expr):
     """
 
     arg: Expr
-    graphs: tuple[str, ...] = attrs.field(converter=tuple)
+    graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
     quantifier: Quantifier
@@ -144,7 +144,7 @@ class GraphIncoming(Expr):
         """Graph operators don't expand further; recursively expand subformula."""
         return GraphIncoming(
             arg=self.arg.expand(),
-            graphs=self.graphs,
+            graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,
@@ -159,7 +159,7 @@ class GraphIncoming(Expr):
         """
         return GraphIncoming(
             arg=self.arg.to_nnf(),
-            graphs=self.graphs,
+            graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,
@@ -192,7 +192,7 @@ class GraphOutgoing(Expr):
     """
 
     arg: Expr
-    graphs: tuple[str, ...] = attrs.field(converter=tuple)
+    graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
     quantifier: Quantifier
@@ -207,7 +207,7 @@ class GraphOutgoing(Expr):
         """Graph operators don't expand further; recursively expand subformula."""
         return GraphOutgoing(
             arg=self.arg.expand(),
-            graphs=self.graphs,
+            graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,
@@ -222,7 +222,7 @@ class GraphOutgoing(Expr):
         """
         return GraphOutgoing(
             arg=self.arg.to_nnf(),
-            graphs=self.graphs,
+            graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,

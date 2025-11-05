@@ -139,7 +139,7 @@ class StlGoTransform(Transformer[Token, Expr]):
         self,
         weight_interval: WeightInterval,
         quantifier: Quantifier,
-        graphs: Iterable[str],
+        graphs: frozenset[str],
         edge_count: EdgeCountInterval,
         arg: Expr,
     ) -> Expr:
@@ -156,7 +156,7 @@ class StlGoTransform(Transformer[Token, Expr]):
         self,
         weight_interval: WeightInterval,
         quantifier: Quantifier,
-        graphs: Iterable[str],
+        graphs: frozenset[str],
         edge_count: EdgeCountInterval,
         arg: Expr,
     ) -> Expr:
@@ -193,11 +193,11 @@ class StlGoTransform(Transformer[Token, Expr]):
         """
         return EdgeCountInterval(start, end)
 
-    def graph_list(self, graph_types: str | list[str]) -> tuple[str, ...]:
+    def graph_list(self, graph_types: str | list[str]) -> frozenset[str]:
         # graph_types can be a list or individual items depending on grammar
         if isinstance(graph_types, list):
-            return tuple(graph_types)
-        return (graph_types,) if graph_types else ()
+            return frozenset(graph_types)
+        return frozenset([graph_types]) if graph_types else frozenset()
 
     @v_args(inline=True)
     def graph_type(self, identifier: str) -> str:
