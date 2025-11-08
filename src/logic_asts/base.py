@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeAlias, TypeVar, final
 
 import attrs
 from attrs import field, frozen
@@ -353,6 +353,38 @@ class Literal(Expr):
     @override
     def horizon(self) -> int | float:
         return 0
+
+
+BaseExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
+
+
+def simple_eval(expr: BaseExpr[str], input: set[str]) -> bool:
+    """A simple evaluation of a Boolean expression given a set of true atomic predicates that correspond to `Variable` names."""
+
+    cache: dict[BaseExpr[str], bool] = dict()
+    for subexpr in expr.iter_subtree():
+        match subexpr:
+            case Literal(value):
+                cache[subexpr] = value
+            case Variable(name):
+                assert isinstance(name, str)
+                cache[subexpr] = name in input
+            case Not(arg):
+                cache[subexpr] = not cache[arg]  # type: ignore
+            case Or(args):
+                cache[subexpr] = any(cache[arg] for arg in args)  # type: ignore
+            case And(args):
+                cache[subexpr] = all(cache[arg] for arg in args)  # type: ignore
+            case Xor(lhs, rhs):
+                cache[subexpr] = cache[lhs] != cache[rhs]  # type: ignore[index]
+            case Equiv(lhs, rhs):
+                cache[subexpr] = cache[lhs] == cache[rhs]  # type: ignore[index]
+            case Implies(p, q):
+                cache[subexpr] = (not cache[p]) or cache[q]  # type: ignore[index]
+            case _:
+                raise TypeError(f"simple evaluation only possible for propositional logic expressions, got {type(subexpr)}")
+
+    return cache[expr]
 
 
 __all__ = [

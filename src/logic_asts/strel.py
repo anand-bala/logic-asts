@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Iterator
-from typing import final
+from typing import TypeAlias, TypeVar, final
 
 import attrs
 from attrs import frozen
 from typing_extensions import override
 
 from logic_asts.base import And, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
-from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
+from logic_asts.ltl import Always, Eventually, LTLExpr, Next, TimeInterval, Until
 from logic_asts.utils import check_positive, check_start
 
 
@@ -155,6 +155,9 @@ class Reach(Expr):
     def horizon(self) -> int | float:
         return max(self.lhs.horizon(), self.rhs.horizon())
 
+
+Var = TypeVar("Var")
+STRELExpr: TypeAlias = LTLExpr[Var] | Everywhere | Somewhere | Reach | Escape
 
 __all__ = [
     "Expr",

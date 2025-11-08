@@ -3,13 +3,13 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Iterator
-from typing import final
+from typing import TypeAlias, TypeVar, final
 
 import attrs
 from attrs import frozen
 from typing_extensions import override
 
-from logic_asts.base import And, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
+from logic_asts.base import And, BaseExpr, Equiv, Expr, Implies, Literal, Not, Or, Variable, Xor
 from logic_asts.utils import check_positive, check_start
 
 
@@ -230,6 +230,9 @@ class Until(Expr):
         end = self.interval.end or math.inf
         return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
 
+
+Var = TypeVar("Var")
+LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until
 
 __all__ = [
     "Expr",

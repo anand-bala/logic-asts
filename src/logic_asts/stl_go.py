@@ -3,13 +3,14 @@ from __future__ import annotations
 import enum
 import math
 from collections.abc import Iterator
-from typing import final
+from typing import TypeVar, final
 
 import attrs
 from attrs import frozen
 from typing_extensions import override
 
 from logic_asts.base import Expr
+from logic_asts.ltl import LTLExpr
 from logic_asts.utils import check_positive, check_start, check_weight_start
 
 
@@ -237,6 +238,9 @@ class GraphOutgoing(Expr):
         """Horizon of graph operators depends on the subformula."""
         return self.arg.horizon()
 
+
+Var = TypeVar("Var")
+STLGOExpr = LTLExpr[Var] | GraphIncoming | GraphOutgoing
 
 __all__ = [
     "WeightInterval",
