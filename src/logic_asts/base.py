@@ -358,16 +358,15 @@ class Literal(Expr):
 BaseExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
 
 
-def simple_eval(expr: BaseExpr[str], input: set[str]) -> bool:
+def simple_eval(expr: BaseExpr[Var], input: set[Var]) -> bool:
     """A simple evaluation of a Boolean expression given a set of true atomic predicates that correspond to `Variable` names."""
 
-    cache: dict[BaseExpr[str], bool] = dict()
+    cache: dict[BaseExpr[Var], bool] = dict()
     for subexpr in expr.iter_subtree():
         match subexpr:
             case Literal(value):
                 cache[subexpr] = value
             case Variable(name):
-                assert isinstance(name, str)
                 cache[subexpr] = name in input
             case Not(arg):
                 cache[subexpr] = not cache[arg]  # type: ignore
