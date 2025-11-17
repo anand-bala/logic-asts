@@ -15,7 +15,7 @@ fmt:
 .PHONY: fmt
 
 typing:
-	uv run --frozen mypy src
+	uv run --frozen mypy src tests
 .PHONY: typing
 
 lint: fmt typing
@@ -24,6 +24,10 @@ lint: fmt typing
 test:
 	uv run --dev --frozen pytest
 .PHONY: test
+
+docs:
+	uv run --dev pdoc 'logic_asts' --math --docformat=google -o docs/_build/
+.PHONY: docs
 
 uv.lock .venv &: pyproject.toml
 	uv sync --frozen --dev

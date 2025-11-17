@@ -1,8 +1,18 @@
+"""
+.. include:: ../../README.md
+
+# API Reference
+"""
+
 # mypy: allow_untyped_calls
 import typing
 
 from lark import Lark, Transformer
 
+import logic_asts.base as base
+import logic_asts.ltl as ltl
+import logic_asts.stl_go as stl_go
+import logic_asts.strel as strel
 from logic_asts.base import Expr
 from logic_asts.grammars import SupportedGrammars
 
@@ -26,3 +36,15 @@ def parse_expr(
 
     parse_tree = grammar.parse(expr)
     return transformer.transform(tree=parse_tree)
+
+
+__all__ = [
+    "parse_expr",
+    "SupportedGrammars",
+    "SupportedGrammarsStr",
+    "Expr",
+    "base",
+    "ltl",
+    "strel",
+    "stl_go",
+]

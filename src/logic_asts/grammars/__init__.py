@@ -235,15 +235,37 @@ class StlGoTransform(Transformer[Token, Expr]):
 @enum.unique
 class SupportedGrammars(enum.Enum):
     BASE = "base"
-    """Base Boolean propositional logic, without quantifiers or modal operators"""
+    """Base Boolean propositional logic, without quantifiers or modal operators
+
+    See:
+        `logic_asts.base`
+    """
+
     LTL = "ltl"
-    """Linear Temporal Logic"""
+    """Linear Temporal Logic
+
+    See:
+        `logic_asts.ltl`
+    """
+
     STREL = "strel"
-    """Spatio-Temporal Reach Escape Logic"""
+    """Spatio-Temporal Reach Escape Logic
+
+    See:
+        `logic_asts.strel`
+    """
+
     STL_GO = "stl_go"
-    """Spatio-Temporal Logic with Graph Operators"""
+    """Spatio-Temporal Logic with Graph Operators
+
+    See:
+        `logic_asts.stl_go`
+    """
 
     def get_transformer(self) -> Transformer[Token, Expr]:
+        """
+        @private
+        """
         syntax = str(self.value)
 
         transformer: Transformer[Token, Expr]
