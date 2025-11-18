@@ -15,7 +15,7 @@ fmt:
 .PHONY: fmt
 
 typing:
-	uv run --frozen mypy src tests
+	uv run --frozen zmypy
 .PHONY: typing
 
 lint: fmt typing

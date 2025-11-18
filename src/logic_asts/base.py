@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Hashable, Iterator
 from collections.abc import Set as AbstractSet
 from typing import Generic, TypeAlias, TypeVar, final
 
@@ -427,7 +427,7 @@ class Not(Expr):
         return self.arg.horizon()
 
 
-Var = TypeVar("Var")
+Var = TypeVar("Var", bound=Hashable)
 
 
 @final

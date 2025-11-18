@@ -21,9 +21,8 @@ testpaths = ["tests"]
 
 [tool.mypy]
 strict = true
-packages = ["logic_asts"]
-files = ["tests/*.py", "tests/**/*.py"]
-exclude = ["^build/"]                   # add mypyc build directory
+files = ["src/", "tests/"]
+exclude = ["^build/"]
 show_error_codes = true
 namespace_packages = false
 
