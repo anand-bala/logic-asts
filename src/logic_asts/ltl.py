@@ -49,7 +49,15 @@ import attrs
 from attrs import frozen
 from typing_extensions import override
 
+from logic_asts.base import And as And
 from logic_asts.base import BaseExpr, Expr
+from logic_asts.base import Equiv as Equiv
+from logic_asts.base import Implies as Implies
+from logic_asts.base import Literal as Literal
+from logic_asts.base import Not as Not
+from logic_asts.base import Or as Or
+from logic_asts.base import Variable as Variable
+from logic_asts.base import Xor as Xor
 from logic_asts.utils import check_positive, check_start
 
 
