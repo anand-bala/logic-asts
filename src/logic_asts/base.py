@@ -30,6 +30,8 @@ import attrs
 from attrs import field, frozen
 from typing_extensions import Self, override
 
+Var = TypeVar("Var", bound=Hashable)
+
 
 class Expr(ABC):
     """Abstract base class for logical expressions."""
@@ -425,9 +427,6 @@ class Not(Expr):
     @override
     def horizon(self) -> int | float:
         return self.arg.horizon()
-
-
-Var = TypeVar("Var", bound=Hashable)
 
 
 @final

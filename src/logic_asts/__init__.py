@@ -8,7 +8,7 @@
 import typing
 
 from lark import Lark, Transformer
-from typing_extensions import overload
+from typing_extensions import TypeIs, overload
 
 import logic_asts.base as base
 import logic_asts.ltl as ltl
@@ -26,6 +26,26 @@ from logic_asts.base import Xor as Xor
 from logic_asts.grammars import SupportedGrammars
 
 SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel", "stl_go"]
+
+
+def is_propositional_logic(obj: object) -> TypeIs[base.BaseExpr[base.Var]]:
+    return isinstance(obj, Implies | Equiv | Xor | And | Or | Not | Variable[base.Var] | Literal)
+
+
+def is_ltl_expr(obj: object) -> TypeIs[ltl.LTLExpr[base.Var]]:
+    return is_propositional_logic(obj) or isinstance(obj, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
+
+
+def is_strel_expr(obj: object) -> TypeIs[strel.STRELExpr[base.Var]]:
+    return (
+        is_propositional_logic(obj)
+        or is_ltl_expr(obj)
+        or isinstance(obj, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
+    )
+
+
+def is_stl_go_expr(obj: object) -> TypeIs[stl_go.STLGOExpr[base.Var]]:
+    return is_propositional_logic(obj) or is_ltl_expr(obj) or isinstance(obj, stl_go.GraphIncoming | stl_go.GraphOutgoing)
 
 
 @overload
