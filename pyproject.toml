@@ -9,14 +9,24 @@ requires-python = ">=3.10"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
-dev = ["ipython", "mypy", "pdoc", "pytest", "rich", "ruff", "zuban", "ty"]
+dev = [
+  "ipython",
+  "mypy",
+  "pdoc",
+  "pytest",
+  "rich",
+  "ruff",
+  "zuban",
+  "ty",
+  "pytest-mypy>=1.0.1",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.pytest]
-addopts = ["--import-mode=importlib", "--doctest-modules"]
+addopts = ["--import-mode=importlib", "--doctest-modules", "--mypy"]
 testpaths = ["tests"]
 
 [tool.mypy]
