@@ -29,23 +29,46 @@ SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel", 
 
 
 def is_propositional_logic(obj: object) -> TypeIs[base.BaseExpr[base.Var]]:
-    return isinstance(obj, Implies | Equiv | Xor | And | Or | Not | Variable[base.Var] | Literal)
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `BaseExpr`"""
+    if isinstance(obj, Expr):
+        return all(
+            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Variable[base.Var] | Literal)
+            for expr in obj.iter_subtree()
+        )
+    return False
 
 
 def is_ltl_expr(obj: object) -> TypeIs[ltl.LTLExpr[base.Var]]:
-    return is_propositional_logic(obj) or isinstance(obj, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `LTLExpr`"""
+    if isinstance(obj, Expr):
+        return all(
+            is_propositional_logic(expr) or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
+            for expr in obj.iter_subtree()
+        )
+
+    return False
 
 
 def is_strel_expr(obj: object) -> TypeIs[strel.STRELExpr[base.Var]]:
-    return (
-        is_propositional_logic(obj)
-        or is_ltl_expr(obj)
-        or isinstance(obj, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
-    )
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STRELExpr`"""
+    if isinstance(obj, Expr):
+        return all(
+            is_propositional_logic(expr)
+            or is_ltl_expr(expr)
+            or isinstance(expr, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
+            for expr in obj.iter_subtree()
+        )
+    return False
 
 
 def is_stl_go_expr(obj: object) -> TypeIs[stl_go.STLGOExpr[base.Var]]:
-    return is_propositional_logic(obj) or is_ltl_expr(obj) or isinstance(obj, stl_go.GraphIncoming | stl_go.GraphOutgoing)
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STLGOExpr`"""
+    if isinstance(obj, Expr):
+        return all(
+            is_propositional_logic(expr) or is_ltl_expr(expr) or isinstance(expr, stl_go.GraphIncoming | stl_go.GraphOutgoing)
+            for expr in obj.iter_subtree()
+        )
+    return False
 
 
 @overload
