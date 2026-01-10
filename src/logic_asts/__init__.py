@@ -155,4 +155,8 @@ __all__ = [
     "ltl",
     "strel",
     "stl_go",
+    "is_propositional_logic",
+    "is_ltl_expr",
+    "is_strel_expr",
+    "is_stl_go_expr",
 ]
