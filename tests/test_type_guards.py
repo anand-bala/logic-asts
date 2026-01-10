@@ -4,7 +4,7 @@ These tests verify that the TypeIs guards correctly narrow types
 for static type checkers like mypy. Run with: mypy tests/test_type_guards.py
 """
 
-from typing import assert_type
+from typing_extensions import assert_type
 
 import logic_asts
 from logic_asts import base, ltl, stl_go, strel
