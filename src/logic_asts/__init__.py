@@ -6,9 +6,10 @@
 
 # mypy: allow_untyped_calls
 import typing
+from collections.abc import Hashable
 
 from lark import Lark, Transformer
-from typing_extensions import TypeIs, overload
+from typing_extensions import overload
 
 import logic_asts.base as base
 import logic_asts.ltl as ltl
@@ -27,45 +28,68 @@ from logic_asts.grammars import SupportedGrammars
 
 SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel", "stl_go"]
 
+_VarT = typing.TypeVar("_VarT", bound=Hashable)
 
-def is_propositional_logic(obj: object) -> TypeIs[base.BaseExpr[base.Var]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `BaseExpr`"""
+
+def is_propositional_logic(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[base.BaseExpr[_VarT]]:
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `BaseExpr`
+
+    > [!WARNING]
+    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    """
     if isinstance(obj, Expr):
+        # Extract origin if it's a subscripted generic
+        check_type = typing.get_origin(var_type) or var_type if var_type else None
         return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Variable[base.Var] | Literal)
+            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
+            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
             for expr in obj.iter_subtree()
         )
     return False
 
 
-def is_ltl_expr(obj: object) -> TypeIs[ltl.LTLExpr[base.Var]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `LTLExpr`"""
+def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[ltl.LTLExpr[_VarT]]:
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `LTLExpr`
+
+    > [!WARNING]
+    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    """
     if isinstance(obj, Expr):
         return all(
-            is_propositional_logic(expr) or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
+            is_propositional_logic(expr, var_type) or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
             for expr in obj.iter_subtree()
         )
 
     return False
 
 
-def is_strel_expr(obj: object) -> TypeIs[strel.STRELExpr[base.Var]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STRELExpr`"""
+def is_strel_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[strel.STRELExpr[_VarT]]:
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STRELExpr`
+
+    > [!WARNING]
+    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    """
     if isinstance(obj, Expr):
         return all(
-            is_propositional_logic(expr)
-            or is_ltl_expr(expr)
+            is_propositional_logic(expr, var_type)
+            or is_ltl_expr(expr, var_type)
             or isinstance(expr, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
             for expr in obj.iter_subtree()
         )
     return False
 
 
-def is_stl_go_expr(obj: object) -> TypeIs[stl_go.STLGOExpr[base.Var]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STLGOExpr`"""
+def is_stl_go_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[stl_go.STLGOExpr[_VarT]]:
+    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STLGOExpr`
+
+    > [!WARNING]
+    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    """
     if isinstance(obj, Expr):
         return all(
-            is_propositional_logic(expr) or is_ltl_expr(expr) or isinstance(expr, stl_go.GraphIncoming | stl_go.GraphOutgoing)
+            is_propositional_logic(expr, var_type)
+            or is_ltl_expr(expr, var_type)
+            or isinstance(expr, stl_go.GraphIncoming | stl_go.GraphOutgoing)
             for expr in obj.iter_subtree()
         )
     return False
