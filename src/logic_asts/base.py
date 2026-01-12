@@ -20,6 +20,7 @@ Examples:
 
 from __future__ import annotations
 
+import typing as ty
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Hashable, Iterator
@@ -28,7 +29,7 @@ from typing import Generic, TypeAlias, TypeVar, final
 
 import attrs
 from attrs import field, frozen
-from typing_extensions import Self, override
+from typing_extensions import Self, overload, override
 
 Var = TypeVar("Var", bound=Hashable)
 
@@ -112,6 +113,82 @@ class Expr(ABC):
                 stack.extend(need_to_visit_children)
         # Yield the remaining nodes in the stack in reverse order
         yield from reversed(stack)
+
+    @overload
+    def atomic_predicates(self, *, assume_nnf: ty.Literal[True]) -> Iterator[Variable[Var] | Not]: ...
+    @overload
+    def atomic_predicates(self, *, assume_nnf: ty.Literal[False]) -> Iterator[Variable[Var]]: ...
+
+    def atomic_predicates(self, *, assume_nnf: bool = False) -> Iterator[Variable[Var] | Not]:
+        """Yield all atomic predicates (variables) in the expression.
+
+        Performs a traversal of the expression tree and yields all variable
+        occurrences. Each unique variable object is yielded only once, even if
+        it appears multiple times in the expression.
+
+        Args:
+            assume_nnf: If True, treats negated variables `Not(Variable(name))`
+                as atomic predicates (yields both Variable and Not nodes).
+                If False, only yields Variable nodes and traverses inside Not.
+                Defaults to False.
+
+        Yields:
+            Variable[Var] | Not: When assume_nnf is True, yields both Variable
+                instances and Not(Variable) instances. When assume_nnf is False,
+                yields only Variable instances.
+
+        Examples:
+            Basic usage (yields variables only):
+            >>> from logic_asts.base import Variable
+            >>> p = Variable("p")
+            >>> q = Variable("q")
+            >>> expr = (p & q) | ~p
+            >>> atoms = set(expr.atomic_predicates())
+            >>> sorted(v.name for v in atoms)
+            ['p', 'q']
+
+            With NNF assumption (yields negated variables as atoms):
+            >>> expr_nnf = (p & q) | ~p
+            >>> atoms = set(expr_nnf.atomic_predicates(assume_nnf=True))
+            >>> len(atoms)  # Should have 3 atoms: p, q, and Not(p)
+            3
+            >>> p in atoms
+            True
+            >>> q in atoms
+            True
+
+        Note:
+            This method visits each node at most once, so duplicate variable
+            references in the tree will only yield one result per unique object.
+        """
+        stack: deque[Expr] = deque([self])
+        visited: set[Expr] = set()
+
+        while stack:
+            subexpr = stack[-1]
+            need_to_visit_children: set[Expr] = set()
+            if assume_nnf and isinstance(subexpr, Not) and isinstance(subexpr.arg, Variable):
+                yield subexpr
+            elif isinstance(subexpr, Variable):
+                yield subexpr
+            else:
+                # Either assume nnf is false or we are looking at a non-atom
+                need_to_visit_children = {
+                    child
+                    for child in subexpr.children()  # We need to visit `child`
+                    if child not in visited  # if it hasn't already been visited
+                }
+
+            if visited.issuperset(need_to_visit_children):
+                # subexpr is a leaf (the set is empty) or it's children have been
+                # yielded get rid of it from the stack
+                _ = stack.pop()
+                # Add subexpr to visited
+                visited.add(subexpr)
+            else:
+                # mid-level node or an empty set
+                # Add relevant children to stack
+                stack.extend(need_to_visit_children)
 
     @abstractmethod
     def horizon(self) -> int | float:
