@@ -56,7 +56,8 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
     """
     if isinstance(obj, Expr):
         return all(
-            is_propositional_logic(expr, var_type) or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until)
+            is_propositional_logic(expr, var_type)
+            or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until | ltl.Release)
             for expr in obj.iter_subtree()
         )
 

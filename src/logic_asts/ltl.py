@@ -6,6 +6,7 @@ LTL properties:
     - F (Eventually): $F\phi$ asserts that $\phi$ holds at some future time
     - G (Always): $G\phi$ asserts that $\phi$ holds at all future times
     - U (Until): $\phi U \psi$ asserts $\phi$ holds until $\psi$ becomes true
+    - R (Release): $\phi R \psi$ asserts $\psi$ holds unless/until $\phi$ becomes true
 
 Time Constraints:
     Operators can be constrained with time intervals [start, end]:
@@ -18,6 +19,7 @@ Key Classes:
     - Eventually: Existential temporal operator
     - Always: Universal temporal operator
     - Until: Binary temporal operator
+    - Release: Binary temporal operator (dual of Until)
 
 Examples:
     Request-response property: `request -> F response`
@@ -448,8 +450,72 @@ class Until(Expr):
         return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
 
 
+@final
+@frozen
+class Release(Expr):
+    r"""Release operator: $\phi R \psi$ or $\phi R_{[a,b]} \psi$.
+
+    Binary temporal operator asserting that rhs holds continuously unless
+    and until lhs becomes true. The formula $\phi R \psi$ holds at time $t$ if
+    either $\psi$ holds forever from $t$ onward, or $\phi$ becomes true at some
+    time $\geq t$ and $\psi$ holds continuously from $t$ until that moment.
+
+    Release is the dual of Until: $\phi R \psi \equiv \neg(\neg\phi U \neg\psi)$.
+
+    With time constraint $\phi R_{[a,b]} \psi$, if phi becomes true, it must do
+    so within the interval [a,b], while psi holds continuously until then.
+
+    Attributes:
+        lhs: The left operand formula ($\phi$, releases rhs when true).
+        rhs: The right operand formula ($\psi$, must hold until released).
+        interval: Time constraint for when lhs may release rhs. Defaults to
+            unbounded $[0,\infty)$.
+
+    Examples:
+        >>> from logic_asts.base import Variable
+        >>> safe = Variable("safe")
+        >>> error = Variable("error")
+        >>> print(Release(safe, ~error))
+        (safe R !error)
+
+        Release with time constraint:
+        >>> standby = Variable("standby")
+        >>> ready = Variable("ready")
+        >>> print(Release(standby, ready, TimeInterval(0, 5)))
+        (standby R[0, 5] ready)
+
+    Semantics:
+        phi R psi asserts: psi holds continuously unless and until phi becomes
+        true. Unlike Until, psi may hold forever if phi never becomes true.
+    """
+
+    lhs: Expr
+    rhs: Expr
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
+
+    @override
+    def __str__(self) -> str:
+        return f"({self.lhs} R{self.interval or ''} {self.rhs})"
+
+    @override
+    def expand(self) -> Expr:
+        # Expands as the dual of Until
+        return Not(Until(~self.lhs, ~self.rhs, self.interval))
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        # Release has same horizon as Until
+        end = self.interval.end or math.inf
+        return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
+
+
 Var = TypeVar("Var")
-LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until
+LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release
 """LTL expression types"""
 
 __all__ = [
@@ -459,6 +525,7 @@ __all__ = [
     "Always",
     "Eventually",
     "Until",
+    "Release",
 ]
 
 __docformat__ = "google"
