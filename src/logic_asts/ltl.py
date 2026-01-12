@@ -269,7 +269,29 @@ class Always(Expr):
 
     @override
     def expand(self) -> Expr:
-        return ~Eventually(~self.arg, self.interval)
+        match self.interval:
+            case TimeInterval(None, None) | TimeInterval(0, None):
+                # Unbounded G
+                return Always(self.arg.expand())
+            case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
+                # G[0, t2]
+                arg = self.arg.expand()
+                expr = arg
+                for _ in range(t2):
+                    expr = expr & Next(arg)
+                return expr
+            case TimeInterval(int(t1), None):
+                # G[t1, inf]
+                assert t1 > 0
+                return Next(Always(self.arg), t1).expand()
+            case TimeInterval(int(t1), int(t2)):
+                # G[t1, t2]
+                assert t1 > 0
+                # G[t1, t2] = X[t1] G[0,t2-t1] arg
+                # Nested nexts until t1
+                return Next(Always(self.arg, TimeInterval(0, t2 - t1)), t1).expand()
+            case TimeInterval():
+                raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
     def to_nnf(self) -> Expr:

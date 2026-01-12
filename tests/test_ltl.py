@@ -210,14 +210,6 @@ class TestAlwaysOperator:
         expr = ltl.Always(p, ltl.TimeInterval(0, 10))
         assert "G" in str(expr) and "p" in str(expr)
 
-    def test_always_expansion(self) -> None:
-        """Test that Always expands to negated Eventually."""
-        p = Variable("p")
-        expr = ltl.Always(p)
-        expanded = expr.expand()
-        # G p = ~F(~p)
-        assert isinstance(expanded, Not)
-
     def test_always_horizon(self) -> None:
         """Test horizon of Always operator."""
         p = Variable("p")
