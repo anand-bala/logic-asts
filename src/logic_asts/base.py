@@ -51,7 +51,6 @@ class Expr(ABC):
             An equivalent expression using only And, Or, Not, Variable, and Literal.
         """
 
-    @abstractmethod
     def to_nnf(self) -> Expr:
         r"""Convert to Negation Normal Form (NNF).
 
@@ -66,6 +65,9 @@ class Expr(ABC):
         Returns:
             An expression in NNF with negations only over atoms.
         """
+        import logic_asts.utils
+
+        return logic_asts.utils.to_nnf(self)
 
     @abstractmethod
     def children(self) -> Iterator[Expr]:
@@ -251,10 +253,6 @@ class Implies(Expr):
         return ~self.lhs | self.rhs
 
     @override
-    def to_nnf(self) -> Expr:
-        return self.expand().to_nnf()
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.lhs
         yield self.rhs
@@ -290,10 +288,6 @@ class Equiv(Expr):
         x = self.lhs
         y = self.rhs
         return (x | ~y) & (~x | y)
-
-    @override
-    def to_nnf(self) -> Expr:
-        return self.expand().to_nnf()
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -333,10 +327,6 @@ class Xor(Expr):
         return (x & ~y) | (~x & y)
 
     @override
-    def to_nnf(self) -> Expr:
-        return self.expand().to_nnf()
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.lhs
         yield self.rhs
@@ -369,15 +359,10 @@ class And(Expr):
         return "(" + " & ".join(str(arg) for arg in self.children()) + ")"
 
     @override
-    def to_nnf(self) -> Expr:
-        acc: Expr = Literal(True)
-        [acc := acc & a.to_nnf() for a in self.args]
-        return acc
-
-    @override
     def expand(self) -> Expr:
         acc: Expr = Literal(True)
-        [acc := acc & a.expand() for a in self.args]
+        for a in self.args:
+            acc = acc & a.expand()
         return acc
 
     @override
@@ -418,15 +403,10 @@ class Or(Expr):
         return "(" + " | ".join(str(arg) for arg in self.children()) + ")"
 
     @override
-    def to_nnf(self) -> Expr:
-        acc: Expr = Literal(False)
-        [acc := acc | a.to_nnf() for a in self.args]
-        return acc
-
-    @override
     def expand(self) -> Expr:
         acc: Expr = Literal(False)
-        [acc := acc | a.expand() for a in self.args]
+        for a in self.args:
+            acc = acc | a.expand()
         return acc
 
     @override
@@ -472,28 +452,6 @@ class Not(Expr):
         return self.arg
 
     @override
-    def to_nnf(self) -> Expr:
-        arg = self.arg
-        ret: Expr
-        match arg:
-            case Literal():
-                return ~arg
-            case Variable():
-                return self
-            case Not(expr):
-                return expr.to_nnf()
-            case And(args):
-                ret = Literal(False)
-                [ret := ret | (~a).to_nnf() for a in args]
-                return ret
-            case Or(args):
-                ret = Literal(True)
-                [ret := ret & (~a).to_nnf() for a in args]
-                return ret
-            case _:
-                return arg.to_nnf()
-
-    @override
     def expand(self) -> Expr:
         return ~(self.arg.expand())
 
@@ -531,10 +489,6 @@ class Variable(Expr, Generic[Var]):
     @override
     def __str__(self) -> str:
         return str(self.name)
-
-    @override
-    def to_nnf(self) -> Expr:
-        return self
 
     @override
     def expand(self) -> Expr:
@@ -596,10 +550,6 @@ class Literal(Expr):
         else:
             # False | x = x
             return other
-
-    @override
-    def to_nnf(self) -> Self:
-        return self
 
     @override
     def expand(self) -> Self:

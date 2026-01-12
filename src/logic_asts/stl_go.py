@@ -289,21 +289,6 @@ class GraphIncoming(Expr):
         )
 
     @override
-    def to_nnf(self) -> Expr:
-        """Convert to Negation Normal Form.
-
-        When negating a graph operator, the quantifier flips but the rest remains.
-        This is handled by the Not class, which will call children() to apply negation.
-        """
-        return GraphIncoming(
-            arg=self.arg.to_nnf(),
-            graphs=frozenset(self.graphs),
-            edge_count=self.edge_count,
-            weights=self.weights,
-            quantifier=self.quantifier,
-        )
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.arg
 
@@ -358,21 +343,6 @@ class GraphOutgoing(Expr):
         """Graph operators don't expand further; recursively expand subformula."""
         return GraphOutgoing(
             arg=self.arg.expand(),
-            graphs=frozenset(self.graphs),
-            edge_count=self.edge_count,
-            weights=self.weights,
-            quantifier=self.quantifier,
-        )
-
-    @override
-    def to_nnf(self) -> Expr:
-        """Convert to Negation Normal Form.
-
-        When negating a graph operator, the quantifier flips but the rest remains.
-        This is handled by the Not class, which will call children() to apply negation.
-        """
-        return GraphOutgoing(
-            arg=self.arg.to_nnf(),
             graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,

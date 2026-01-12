@@ -220,10 +220,6 @@ class Next(Expr):
                 return expr
 
     @override
-    def to_nnf(self) -> Expr:
-        return Next(self.arg.to_nnf(), steps=self.steps)
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.arg
 
@@ -296,10 +292,6 @@ class Always(Expr):
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
-    def to_nnf(self) -> Expr:
-        return self.expand().to_nnf()
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.arg
 
@@ -367,10 +359,6 @@ class Eventually(Expr):
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
-    def to_nnf(self) -> Expr:
-        return Eventually(self.arg.to_nnf(), self.interval)
-
-    @override
     def children(self) -> Iterator[Expr]:
         yield self.arg
 
@@ -415,10 +403,6 @@ class Until(Expr):
     @override
     def __str__(self) -> str:
         return f"({self.lhs} U{self.interval or ''} {self.rhs})"
-
-    @override
-    def to_nnf(self) -> Expr:
-        return Until(self.lhs.to_nnf(), self.rhs.to_nnf(), interval=self.interval)
 
     @override
     def expand(self) -> Expr:
