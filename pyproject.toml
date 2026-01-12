@@ -27,7 +27,7 @@ build-backend = "hatchling.build"
 
 [tool.pytest]
 addopts = ["--import-mode=importlib", "--doctest-modules", "--mypy"]
-testpaths = ["tests"]
+testpaths = ["tests", "src"]
 
 [tool.mypy]
 strict = true
