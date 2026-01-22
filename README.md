@@ -35,16 +35,15 @@ The library implements complete support for four logical systems:
 
 ## Installation
 
-Install from the repository:
-
-```bash
-pip install git+https://github.com/yourusername/logic-asts.git
-```
-
-Or, once available on PyPI:
-
+Install from PyPI:
 ```bash
 pip install logic-asts
+```
+
+Or if you'd like the latest main branch:
+
+```bash
+pip install git+https://github.com/anand-bala/logic-asts.git
 ```
 
 ## Quick Start
