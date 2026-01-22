@@ -6,6 +6,6 @@ info() {
   DIRENV_LOG_FORMAT="envrc: %s" log_status "$@"
 }
 
-make dev
+uv run --dev just dev
 watch_file uv.lock
 source ./.venv/bin/activate

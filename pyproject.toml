@@ -19,6 +19,7 @@ dev = [
   "zuban",
   "ty",
   "pytest-mypy>=1.0.1",
+  "rust-just>=1.46.0",
 ]
 
 [build-system]
