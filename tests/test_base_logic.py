@@ -21,7 +21,6 @@ import logic_asts
 from logic_asts.base import (
     And,
     Equiv,
-    Expr,
     Implies,
     Literal,
     Not,
@@ -30,6 +29,7 @@ from logic_asts.base import (
     Xor,
     simple_eval,
 )
+from logic_asts.spec import Expr
 
 
 class TestAtomicExpressions:

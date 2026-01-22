@@ -52,7 +52,7 @@ from attrs import frozen
 from typing_extensions import override
 
 from logic_asts.base import And as And
-from logic_asts.base import BaseExpr, Expr
+from logic_asts.base import BaseExpr
 from logic_asts.base import Equiv as Equiv
 from logic_asts.base import Implies as Implies
 from logic_asts.base import Literal as Literal
@@ -60,6 +60,7 @@ from logic_asts.base import Not as Not
 from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
+from logic_asts.spec import Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start
 
 
@@ -210,14 +211,14 @@ class Next(Expr):
     @override
     def expand(self) -> Expr:
         arg = self.arg.expand()
-        match self.steps:
-            case None:
-                return Next(arg)
-            case t:
-                expr = arg
-                for _ in range(t):
-                    expr = Next(expr)
-                return expr
+        if self.steps is None:
+            return Next(arg)
+        else:
+            assert isinstance(self.steps, int)
+            expr = arg
+            for _ in range(self.steps):
+                expr = Next(expr)
+            return expr
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -288,7 +289,7 @@ class Always(Expr):
                 # G[t1, t2] = X[t1] G[0,t2-t1] arg
                 # Nested nexts until t1
                 return Next(Always(self.arg, TimeInterval(0, t2 - t1)), t1).expand()
-            case TimeInterval():
+            case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
@@ -355,7 +356,7 @@ class Eventually(Expr):
                 # F[t1, t2] = X[t1] F[0,t2-t1] arg
                 # Nested nexts until t1
                 return Next(Eventually(self.arg, TimeInterval(0, t2 - t1)), t1).expand()
-            case TimeInterval():
+            case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
@@ -422,6 +423,8 @@ class Until(Expr):
                 until_interval = TimeInterval(t1, None)
                 z2 = Until(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
                 return z1 & z2
+            case _:
+                raise RuntimeError(f"Unexpected time interval {self.interval}")
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -502,6 +505,45 @@ Var = TypeVar("Var")
 LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release
 """LTL expression types"""
 
+
+def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
+    """Returns an post-order iterator over the LTL expression
+
+    Iterates over all sub-expressions in post-order, visiting each
+    expression exactly once. In post-order, children are yielded before
+    their parents, making this suitable for bottom-up processing.
+
+    Moreover, it ensures that each subexpression is a `LTLExpr`.
+
+    Yields:
+        Each node in the expression tree in post-order sequence.
+
+    Raises:
+        TypeError: If the expression contains a subexpression that is not an `LTLExpr`
+
+    """
+    return iter(
+        ExprVisitor[LTLExpr[Var]](
+            (
+                Next,
+                Always,
+                Eventually,
+                Until,
+                Release,
+                Implies,
+                Equiv,
+                Xor,
+                And,
+                Or,
+                Not,
+                Variable[Var],
+                Literal,
+            ),
+            expr,
+        )
+    )
+
+
 __all__ = [
     "LTLExpr",
     "TimeInterval",
@@ -510,6 +552,7 @@ __all__ = [
     "Eventually",
     "Until",
     "Release",
+    "ltl_expr_iter",
 ]
 
 __docformat__ = "google"

@@ -16,7 +16,8 @@ import rich
 import logic_asts
 import logic_asts.ltl as ltl
 import logic_asts.strel as strel
-from logic_asts.base import And, Expr, Variable
+from logic_asts.base import And, Variable
+from logic_asts.spec import Expr
 
 
 class TestDistanceInterval:

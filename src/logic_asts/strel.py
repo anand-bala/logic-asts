@@ -44,7 +44,6 @@ from typing_extensions import override
 
 from logic_asts.base import And as And
 from logic_asts.base import Equiv as Equiv
-from logic_asts.base import Expr
 from logic_asts.base import Implies as Implies
 from logic_asts.base import Literal as Literal
 from logic_asts.base import Not as Not
@@ -55,8 +54,10 @@ from logic_asts.ltl import Always as Always
 from logic_asts.ltl import Eventually as Eventually
 from logic_asts.ltl import LTLExpr
 from logic_asts.ltl import Next as Next
+from logic_asts.ltl import Release as Release
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
+from logic_asts.spec import Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start
 
 
@@ -302,6 +303,49 @@ Var = TypeVar("Var")
 STRELExpr: TypeAlias = LTLExpr[Var] | Everywhere | Somewhere | Reach | Escape
 """STREL Expression Types"""
 
+
+def strel_expr_iter(expr: STRELExpr[Var]) -> Iterator[STRELExpr[Var]]:
+    """Returns an post-order iterator over the STREL expression
+
+    Iterates over all sub-expressions in post-order, visiting each
+    expression exactly once. In post-order, children are yielded before
+    their parents, making this suitable for bottom-up processing.
+
+    Moreover, it ensures that each subexpression is a `STRELExpr`.
+
+    Yields:
+        Each node in the expression tree in post-order sequence.
+
+    Raises:
+        TypeError: If the expression contains a subexpression that is not an `STRELExpr`
+
+    """
+    return iter(
+        ExprVisitor[STRELExpr[Var]](
+            (
+                Everywhere,
+                Somewhere,
+                Reach,
+                Escape,
+                Next,
+                Always,
+                Eventually,
+                Until,
+                Release,
+                Implies,
+                Equiv,
+                Xor,
+                And,
+                Or,
+                Not,
+                Variable[Var],
+                Literal,
+            ),
+            expr,
+        )
+    )
+
+
 __all__ = [
     "STRELExpr",
     "DistanceInterval",
@@ -309,4 +353,5 @@ __all__ = [
     "Somewhere",
     "Escape",
     "Reach",
+    "strel_expr_iter",
 ]

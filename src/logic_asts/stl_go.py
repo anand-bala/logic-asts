@@ -46,7 +46,6 @@ from typing_extensions import override
 
 from logic_asts.base import And as And
 from logic_asts.base import Equiv as Equiv
-from logic_asts.base import Expr
 from logic_asts.base import Implies as Implies
 from logic_asts.base import Literal as Literal
 from logic_asts.base import Not as Not
@@ -57,8 +56,10 @@ from logic_asts.ltl import Always as Always
 from logic_asts.ltl import Eventually as Eventually
 from logic_asts.ltl import LTLExpr
 from logic_asts.ltl import Next as Next
+from logic_asts.ltl import Release as Release
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
+from logic_asts.spec import Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, check_weight_start
 
 
@@ -220,6 +221,8 @@ class Quantifier(enum.Enum):
                 return "exists"
             case Quantifier.FORALL:
                 return "forall"
+            case _:
+                raise RuntimeError("unexpected")
 
     def negate(self) -> Quantifier:
         r"""Flip the quantifier for formula negation.
@@ -235,6 +238,8 @@ class Quantifier(enum.Enum):
                 return Quantifier.FORALL
             case Quantifier.FORALL:
                 return Quantifier.EXISTS
+            case _:
+                raise RuntimeError("unexpected")
 
 
 @final
@@ -362,6 +367,47 @@ class GraphOutgoing(Expr):
 Var = TypeVar("Var")
 STLGOExpr: TypeAlias = LTLExpr[Var] | GraphIncoming | GraphOutgoing
 
+
+def stlgo_expr_iter(expr: STLGOExpr[Var]) -> Iterator[STLGOExpr[Var]]:
+    """Returns an post-order iterator over the STLGO expression
+
+    Iterates over all sub-expressions in post-order, visiting each
+    expression exactly once. In post-order, children are yielded before
+    their parents, making this suitable for bottom-up processing.
+
+    Moreover, it ensures that each subexpression is a `STLGOExpr`.
+
+    Yields:
+        Each node in the expression tree in post-order sequence.
+
+    Raises:
+        TypeError: If the expression contains a subexpression that is not an `STLGOExpr`
+
+    """
+    return iter(
+        ExprVisitor[STLGOExpr[Var]](
+            (
+                GraphIncoming,
+                GraphOutgoing,
+                Next,
+                Always,
+                Eventually,
+                Until,
+                Release,
+                Implies,
+                Equiv,
+                Xor,
+                And,
+                Or,
+                Not,
+                Variable[Var],
+                Literal,
+            ),
+            expr,
+        )
+    )
+
+
 __all__ = [
     "STLGOExpr",
     "WeightInterval",
@@ -369,4 +415,5 @@ __all__ = [
     "Quantifier",
     "GraphIncoming",
     "GraphOutgoing",
+    "stlgo_expr_iter",
 ]

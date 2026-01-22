@@ -16,15 +16,24 @@ import logic_asts.ltl as ltl
 import logic_asts.stl_go as stl_go
 import logic_asts.strel as strel
 from logic_asts.base import And as And
+from logic_asts.base import BoolExpr as BoolExpr
 from logic_asts.base import Equiv as Equiv
-from logic_asts.base import Expr
 from logic_asts.base import Implies as Implies
 from logic_asts.base import Literal as Literal
 from logic_asts.base import Not as Not
 from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
+from logic_asts.base import bool_expr_iter as bool_expr_iter
 from logic_asts.grammars import SupportedGrammars
+from logic_asts.ltl import LTLExpr as LTLExpr
+from logic_asts.ltl import ltl_expr_iter as ltl_expr_iter
+from logic_asts.spec import Expr as Expr
+from logic_asts.spec import ExprVisitor as ExprVisitor
+from logic_asts.stl_go import STLGOExpr as STLGOExpr
+from logic_asts.stl_go import stlgo_expr_iter as stlgo_expr_iter
+from logic_asts.strel import STRELExpr as STRELExpr
+from logic_asts.strel import strel_expr_iter as strel_expr_iter
 
 SupportedGrammarsStr: typing.TypeAlias = typing.Literal["base", "ltl", "strel", "stl_go"]
 
@@ -148,16 +157,29 @@ def parse_expr(
 
 
 __all__ = [
-    "parse_expr",
+    "And",
+    "BoolExpr",
+    "Equiv",
+    "Expr",
+    "ExprVisitor",
+    "Implies",
+    "LTLExpr",
+    "Literal",
+    "Not",
+    "Or",
+    "STLGOExpr",
+    "STRELExpr",
     "SupportedGrammars",
     "SupportedGrammarsStr",
-    "Expr",
+    "Variable",
+    "Xor",
     "base",
+    "bool_expr_iter",
     "ltl",
-    "strel",
+    "ltl_expr_iter",
+    "parse_expr",
     "stl_go",
-    "is_propositional_logic",
-    "is_ltl_expr",
-    "is_strel_expr",
-    "is_stl_go_expr",
+    "stlgo_expr_iter",
+    "strel",
+    "strel_expr_iter",
 ]

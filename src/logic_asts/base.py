@@ -20,212 +20,18 @@ Examples:
 
 from __future__ import annotations
 
-import typing as ty
-from abc import ABC, abstractmethod
-from collections import deque
+import typing
 from collections.abc import Hashable, Iterator
 from collections.abc import Set as AbstractSet
 from typing import Generic, TypeAlias, TypeVar, final
 
 import attrs
 from attrs import field, frozen
-from typing_extensions import Self, overload, override
+from typing_extensions import Self, override
+
+from logic_asts.spec import Expr, ExprVisitor
 
 Var = TypeVar("Var", bound=Hashable)
-
-
-class Expr(ABC):
-    """Abstract base class for logical expressions."""
-
-    @abstractmethod
-    def expand(self) -> Expr:
-        r"""Expand derived operators to basic form.
-
-        Derived operators (Implies, Equiv, Xor) are expanded to their
-        definitions in terms of And, Or, and Not:
-        - $\phi \to \psi \equiv \neg\phi \vee \psi$
-        - $\phi \equiv \psi \equiv (\phi \vee \neg\psi) \wedge (\neg\phi \vee \psi)$
-        - $\phi \oplus \psi \equiv (\phi \wedge \neg\psi) \vee (\neg\phi \wedge \psi)$
-
-        Returns:
-            An equivalent expression using only And, Or, Not, Variable, and Literal.
-        """
-
-    def to_nnf(self) -> Expr:
-        r"""Convert to Negation Normal Form (NNF).
-
-        NNF is a canonical form where negation appears only over atomic
-        propositions (variables and literals). This is achieved by:
-        - Applying De Morgan's laws to push negations inward
-        - Expanding derived operators using expand()
-        - Eliminating double negations
-
-        The result is logically equivalent to the original expression.
-
-        Returns:
-            An expression in NNF with negations only over atoms.
-        """
-        import logic_asts.utils
-
-        return logic_asts.utils.to_nnf(self)
-
-    @abstractmethod
-    def children(self) -> Iterator[Expr]:
-        r"""Iterate over immediate child expressions.
-
-        Returns an iterator of the direct sub-expressions of this expression.
-        For leaf nodes (Variable, Literal), yields nothing.
-
-        Returns:
-            Iterator of child expressions.
-        """
-
-    def iter_subtree(self) -> Iterator[Expr]:
-        r"""Perform post-order traversal of the expression tree.
-
-        Iterates over all sub-expressions in post-order, visiting each
-        expression exactly once. In post-order, children are yielded before
-        their parents, making this suitable for bottom-up processing.
-
-        Yields:
-            Each node in the expression tree in post-order sequence.
-        """
-        stack: deque[Expr] = deque([self])
-        visited: set[Expr] = set()
-
-        while stack:
-            subexpr = stack[-1]
-            need_to_visit_children = {
-                child
-                for child in subexpr.children()  # We need to visit `child`
-                if (child) not in visited  # if it hasn't already been visited
-            }
-
-            if visited.issuperset(need_to_visit_children):
-                # subexpr is a leaf (the set is empty) or it's children have been
-                # yielded get rid of it from the stack
-                _ = stack.pop()
-                # Add subexpr to visited
-                visited.add(subexpr)
-                # post-order return it
-                yield subexpr
-            else:
-                # mid-level node or an empty set
-                # Add relevant children to stack
-                stack.extend(need_to_visit_children)
-        # Yield the remaining nodes in the stack in reverse order
-        yield from reversed(stack)
-
-    @overload
-    def atomic_predicates(self, *, assume_nnf: ty.Literal[True]) -> Iterator[Variable[Var] | Not]: ...
-    @overload
-    def atomic_predicates(self, *, assume_nnf: ty.Literal[False]) -> Iterator[Variable[Var]]: ...
-
-    def atomic_predicates(self, *, assume_nnf: bool = False) -> Iterator[Variable[Var] | Not]:
-        """Yield all atomic predicates (variables) in the expression.
-
-        Performs a traversal of the expression tree and yields all variable
-        occurrences. Each unique variable object is yielded only once, even if
-        it appears multiple times in the expression.
-
-        Args:
-            assume_nnf: If True, treats negated variables `Not(Variable(name))`
-                as atomic predicates (yields both Variable and Not nodes).
-                If False, only yields Variable nodes and traverses inside Not.
-                Defaults to False.
-
-        Yields:
-            Variable[Var] | Not: When assume_nnf is True, yields both Variable
-                instances and Not(Variable) instances. When assume_nnf is False,
-                yields only Variable instances.
-
-        Examples:
-            Basic usage (yields variables only):
-            >>> from logic_asts.base import Variable
-            >>> p = Variable("p")
-            >>> q = Variable("q")
-            >>> expr = (p & q) | ~p
-            >>> atoms = set(expr.atomic_predicates())
-            >>> sorted(v.name for v in atoms)
-            ['p', 'q']
-
-            With NNF assumption (yields negated variables as atoms):
-            >>> expr_nnf = (p & q) | ~p
-            >>> atoms = set(expr_nnf.atomic_predicates(assume_nnf=True))
-            >>> len(atoms)  # Should have 3 atoms: p, q, and Not(p)
-            3
-            >>> p in atoms
-            True
-            >>> q in atoms
-            True
-
-        Note:
-            This method visits each node at most once, so duplicate variable
-            references in the tree will only yield one result per unique object.
-        """
-        stack: deque[Expr] = deque([self])
-        visited: set[Expr] = set()
-
-        while stack:
-            subexpr = stack[-1]
-            need_to_visit_children: set[Expr] = set()
-            if assume_nnf and isinstance(subexpr, Not) and isinstance(subexpr.arg, Variable):
-                yield subexpr
-            elif isinstance(subexpr, Variable):
-                yield subexpr
-            else:
-                # Either assume nnf is false or we are looking at a non-atom
-                need_to_visit_children = {
-                    child
-                    for child in subexpr.children()  # We need to visit `child`
-                    if child not in visited  # if it hasn't already been visited
-                }
-
-            if visited.issuperset(need_to_visit_children):
-                # subexpr is a leaf (the set is empty) or it's children have been
-                # yielded get rid of it from the stack
-                _ = stack.pop()
-                # Add subexpr to visited
-                visited.add(subexpr)
-            else:
-                # mid-level node or an empty set
-                # Add relevant children to stack
-                stack.extend(need_to_visit_children)
-
-    @abstractmethod
-    def horizon(self) -> int | float:
-        r"""Compute the lookahead depth required for this formula.
-
-        For propositional logic, horizon is always 0 (no temporal lookahead).
-        Subclasses extending to temporal logics may return positive values.
-
-        Returns:
-            Non-negative integer or float('inf') for unbounded formulas.
-        """
-
-    def __invert__(self) -> Expr:
-        r"""Logical negation operator (~).
-
-        Returns:
-            A Not expression wrapping this expression.
-        """
-        return Not(self)
-
-    def __and__(self, other: Expr) -> Expr:
-        r"""Logical conjunction operator (&).
-
-        Returns:
-            An And expression joining this and other.
-        """
-        return And((self, other))
-
-    def __or__(self, other: Expr) -> Expr:
-        r"""Logical disjunction operator (|).
-
-        Returns:
-            An Or expression joining this and other.
-        """
-        return Or((self, other))
 
 
 @final
@@ -567,6 +373,60 @@ class Literal(Expr):
 BaseExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
 """Propositional logic expression types"""
 
+BoolExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
+"""Propositional logic expression types"""
+
+
+def is_bool_expr(expr: object, var_type: type[Var] | None = None) -> typing.TypeGuard[BoolExpr[Var]]:
+    """Checks if the given object is a `BoolExpr`.
+
+    Unlike `logic_asts.is_propositional_logic`, it does not recursively check if subexpressions are of the expected type.
+
+    > [!WARNING]
+    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    """
+    # Extract origin if it's a subscripted generic
+    check_type = typing.get_origin(var_type) or var_type if var_type else None
+    return (
+        # Check if non-generic BoolExpr
+        isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
+        # Or, check if Variable with given var type
+        or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
+    )
+
+
+def bool_expr_iter(expr: BoolExpr[Var]) -> Iterator[BoolExpr[Var]]:
+    """Returns an post-order iterator over the Boolean expression
+
+    Iterates over all sub-expressions in post-order, visiting each
+    expression exactly once. In post-order, children are yielded before
+    their parents, making this suitable for bottom-up processing.
+
+    Moreover, it ensures that each subexpression is a `BoolExpr`.
+
+    Yields:
+        Each node in the expression tree in post-order sequence.
+
+    Raises:
+        TypeError: If the expression contains a subexpression that is not a `BoolExpr`
+
+    """
+    return iter(
+        ExprVisitor[BoolExpr[Var]](
+            (
+                Implies,
+                Equiv,
+                Xor,
+                And,
+                Or,
+                Not,
+                Variable[Var],
+                Literal,
+            ),
+            expr,
+        )
+    )
+
 
 def simple_eval(expr: BaseExpr[Var], input: AbstractSet[Var]) -> bool:
     r"""Evaluate a propositional formula under a given truth assignment.
@@ -600,24 +460,31 @@ def simple_eval(expr: BaseExpr[Var], input: AbstractSet[Var]) -> bool:
     """
 
     cache: dict[BaseExpr[Var], bool] = dict()
-    for subexpr in expr.iter_subtree():
+    for subexpr in bool_expr_iter(expr):
         match subexpr:
             case Literal(value):
                 cache[subexpr] = value
             case Variable(name):
                 cache[subexpr] = name in input
             case Not(arg):
-                cache[subexpr] = not cache[arg]  # type: ignore
+                assert is_bool_expr(arg)
+                cache[subexpr] = not cache[arg]
             case Or(args):
-                cache[subexpr] = any(cache[arg] for arg in args)  # type: ignore
+                cache[subexpr] = any(cache[typing.cast(BoolExpr[Var], arg)] for arg in args)
             case And(args):
-                cache[subexpr] = all(cache[arg] for arg in args)  # type: ignore
+                cache[subexpr] = all(cache[typing.cast(BoolExpr[Var], arg)] for arg in args)
             case Xor(lhs, rhs):
-                cache[subexpr] = cache[lhs] != cache[rhs]  # type: ignore[index]
+                assert is_bool_expr(lhs)
+                assert is_bool_expr(rhs)
+                cache[subexpr] = cache[lhs] != cache[rhs]
             case Equiv(lhs, rhs):
-                cache[subexpr] = cache[lhs] == cache[rhs]  # type: ignore[index]
+                assert is_bool_expr(lhs)
+                assert is_bool_expr(rhs)
+                cache[subexpr] = cache[lhs] == cache[rhs]
             case Implies(p, q):
-                cache[subexpr] = (not cache[p]) or cache[q]  # type: ignore[index]
+                assert is_bool_expr(p)
+                assert is_bool_expr(q)
+                cache[subexpr] = (not cache[p]) or cache[q]
             case _:
                 raise TypeError(f"simple evaluation only possible for propositional logic expressions, got {type(subexpr)}")
 
@@ -625,6 +492,7 @@ def simple_eval(expr: BaseExpr[Var], input: AbstractSet[Var]) -> bool:
 
 
 __all__ = [
+    "BoolExpr",
     "BaseExpr",
     "Literal",
     "Variable",
@@ -634,6 +502,7 @@ __all__ = [
     "Xor",
     "Equiv",
     "Implies",
+    "bool_expr_iter",
 ]
 
 __docformat__ = "google"

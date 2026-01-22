@@ -17,7 +17,8 @@ import pytest
 
 import logic_asts
 import logic_asts.ltl as ltl
-from logic_asts.base import And, Expr, Not, Variable
+from logic_asts.base import And, Not, Variable
+from logic_asts.spec import Expr
 
 
 class TestTimeInterval:
