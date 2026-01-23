@@ -109,7 +109,7 @@ def is_stl_go_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.T
 def parse_expr(
     expr: str,
     *,
-    syntax: typing.Literal["base", SupportedGrammars.BASE],
+    syntax: typing.Literal["base", SupportedGrammars.BASE] = ...,
 ) -> base.BaseExpr[str]: ...
 
 
@@ -117,7 +117,7 @@ def parse_expr(
 def parse_expr(
     expr: str,
     *,
-    syntax: typing.Literal["ltl", SupportedGrammars.LTL],
+    syntax: typing.Literal["ltl", SupportedGrammars.LTL] = ...,
 ) -> ltl.LTLExpr[str]: ...
 
 
@@ -125,7 +125,7 @@ def parse_expr(
 def parse_expr(
     expr: str,
     *,
-    syntax: typing.Literal["strel", SupportedGrammars.STREL],
+    syntax: typing.Literal["strel", SupportedGrammars.STREL] = ...,
 ) -> strel.STRELExpr[str]: ...
 
 
@@ -133,7 +133,7 @@ def parse_expr(
 def parse_expr(
     expr: str,
     *,
-    syntax: typing.Literal["stl_go", SupportedGrammars.STL_GO],
+    syntax: typing.Literal["stl_go", SupportedGrammars.STL_GO] = ...,
 ) -> stl_go.STLGOExpr[str]: ...
 
 
