@@ -1,6 +1,6 @@
 [project]
 name = "logic-asts"
-version = "1.4.1"
+version = "1.5.0"
 description = "Grammars and parsers for various logic"
 readme = "README.md"
 license = { file = "LICENSE" }
