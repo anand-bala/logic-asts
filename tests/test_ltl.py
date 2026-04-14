@@ -395,6 +395,108 @@ class TestLTLParsing:
         assert expr.interval.end is None
 
 
+class TestSequenceOperator:
+    """Tests for Sequence (;) operator."""
+
+    def test_sequence_str(self) -> None:
+        """Test string representation."""
+        p = Variable("p")
+        q = Variable("q")
+        assert str(ltl.Sequence(p, q)) == "(p ; q)"
+
+    def test_sequence_children(self) -> None:
+        """Test children yields both operands."""
+        p = Variable("p")
+        q = Variable("q")
+        expr = ltl.Sequence(p, q)
+        children = list(expr.children())
+        assert len(children) == 2
+        assert children[0] == p
+        assert children[1] == q
+
+    def test_sequence_horizon(self) -> None:
+        """Test horizon is max(lhs.horizon(), 1 + rhs.horizon())."""
+        p = Variable("p")
+        q = Variable("q")
+        expr = ltl.Sequence(p, q)
+        # Variables have horizon 0; result should be max(0, 1+0) = 1
+        assert expr.horizon() == 1
+
+    def test_sequence_horizon_with_temporal_rhs(self) -> None:
+        """Test horizon when rhs contains a temporal operator."""
+        p = Variable("p")
+        q = Variable("q")
+        expr = ltl.Sequence(p, ltl.Always(q))
+        assert math.isinf(expr.horizon())
+
+    def test_sequence_expand(self) -> None:
+        """Test expand() returns lhs & Next(rhs)."""
+        p = Variable("p")
+        q = Variable("q")
+        expanded = ltl.Sequence(p, q).expand()
+        assert isinstance(expanded, And)
+        children = list(expanded.children())
+        assert p in children
+        assert any(isinstance(c, ltl.Next) and c.arg == q for c in children)
+
+    def test_sequence_chaining(self) -> None:
+        """Test that chaining a ; (b ; c) expands to a & X(b & X(c))."""
+        a = Variable("a")
+        b = Variable("b")
+        c = Variable("c")
+        expr = ltl.Sequence(a, ltl.Sequence(b, c))
+        expanded = expr.expand()
+        # a & X(b & X(c))
+        assert isinstance(expanded, And)
+        outer_children = list(expanded.children())
+        assert a in outer_children
+        next_node = next(ch for ch in outer_children if isinstance(ch, ltl.Next))
+        inner = next_node.arg
+        assert isinstance(inner, And)
+        inner_children = list(inner.children())
+        assert b in inner_children
+        assert any(isinstance(c2, ltl.Next) and c2.arg == c for c2 in inner_children)
+
+    def test_sequence_nnf(self) -> None:
+        """Test NNF of Sequence is preserved."""
+        p = Variable("p")
+        q = Variable("q")
+        expr = ltl.Sequence(p, q)
+        nnf = expr.to_nnf()
+        assert isinstance(nnf, ltl.Sequence)
+
+    def test_sequence_negated_nnf(self) -> None:
+        """Test NNF of negated Sequence: ~(p ; q) = ~p | X(~q)."""
+        from logic_asts.base import Or
+        p = Variable("p")
+        q = Variable("q")
+        expr = ~ltl.Sequence(p, q)
+        nnf = expr.to_nnf()
+        assert isinstance(nnf, Or)
+
+    def test_parse_sequence(self) -> None:
+        """Test parsing sequence via semicolon syntax."""
+        expr = logic_asts.parse_expr("p ; q", syntax="ltl")
+        assert isinstance(expr, ltl.Sequence)
+        assert expr.lhs == Variable("p")
+        assert expr.rhs == Variable("q")
+
+    def test_parse_sequence_left_associative(self) -> None:
+        """Test that p ; q ; r parses left-associatively as (p ; q) ; r."""
+        expr = logic_asts.parse_expr("p ; q ; r", syntax="ltl")
+        assert isinstance(expr, ltl.Sequence)
+        assert isinstance(expr.lhs, ltl.Sequence)
+        assert expr.rhs == Variable("r")
+
+    def test_parse_sequence_lower_precedence_than_implies(self) -> None:
+        """Test that ; binds looser than ->, so p -> q ; r -> s = (p->q);(r->s)."""
+        from logic_asts.base import Implies
+        expr = logic_asts.parse_expr("p -> q ; r -> s", syntax="ltl")
+        assert isinstance(expr, ltl.Sequence)
+        assert isinstance(expr.lhs, Implies)
+        assert isinstance(expr.rhs, Implies)
+
+
 class TestLTLCases:
     """Original test cases from the initial test suite."""
 

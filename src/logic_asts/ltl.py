@@ -501,8 +501,52 @@ class Release(Expr):
         return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
 
 
+@final
+@frozen
+class Sequence(Expr):
+    r"""Sequence operator: $\phi_1 ; \phi_2$.
+
+    Asserts that lhs holds at the current time step and rhs holds at the next
+    time step. Equivalent to $\phi_1 \land X\phi_2$.
+
+    Attributes:
+        lhs: The formula that must hold at the current time step.
+        rhs: The formula that must hold at the next time step.
+
+    Examples:
+        >>> from logic_asts.base import Variable
+        >>> p = Variable("p")
+        >>> q = Variable("q")
+        >>> print(Sequence(p, q))
+        (p ; q)
+
+    Semantics:
+        phi1 ; phi2  is equivalent to  phi1 & X(phi2)
+    """
+
+    lhs: Expr
+    rhs: Expr
+
+    @override
+    def __str__(self) -> str:
+        return f"({self.lhs} ; {self.rhs})"
+
+    @override
+    def expand(self) -> Expr:
+        return self.lhs.expand() & Next(self.rhs.expand())
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        return max(self.lhs.horizon(), 1 + self.rhs.horizon())
+
+
 Var = TypeVar("Var")
-LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release
+LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release | Sequence
 """LTL expression types.
 
 Use :func:`logic_asts.ltl_expr_iter` to iterate over the subtree of an
@@ -535,6 +579,7 @@ def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
                 Eventually,
                 Until,
                 Release,
+                Sequence,
                 Implies,
                 Equiv,
                 Xor,
@@ -557,6 +602,7 @@ __all__ = [
     "Eventually",
     "Until",
     "Release",
+    "Sequence",
     "ltl_expr_iter",
 ]
 

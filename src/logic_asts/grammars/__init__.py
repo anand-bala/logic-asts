@@ -10,7 +10,7 @@ from lark import Token, Transformer, v_args
 from lark.visitors import merge_transformers
 
 from logic_asts.base import Equiv, Implies, Literal, Variable, Xor
-from logic_asts.ltl import Always, Eventually, Next, TimeInterval, Until
+from logic_asts.ltl import Always, Eventually, Next, Sequence, TimeInterval, Until
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
@@ -75,6 +75,9 @@ class BaseTransform(Transformer[Token, Expr]):
 class LtlTransform(Transformer[Token, Expr]):
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:
         return lhs & rhs
+
+    def sequence(self, lhs: Expr, rhs: Expr) -> Expr:
+        return Sequence(lhs, rhs)
 
     def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         interval = interval or TimeInterval()

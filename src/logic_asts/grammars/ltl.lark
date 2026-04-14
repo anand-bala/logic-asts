@@ -1,6 +1,10 @@
-%import .base (expr, product, unary)
+%import .base (expr, impl_expr, product, unary)
 
 ?start: expr
+
+// Sequence has lower precedence than implies/equiv (below expr level)
+%override ?expr: impl_expr
+              | expr ";" impl_expr -> sequence
 
 // Add temporal operators with higher precedence than & and |
 %override ?product: ex_binary

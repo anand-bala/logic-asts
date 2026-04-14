@@ -27,6 +27,7 @@ from logic_asts.base import Xor as Xor
 from logic_asts.base import bool_expr_iter as bool_expr_iter
 from logic_asts.grammars import SupportedGrammars
 from logic_asts.ltl import LTLExpr as LTLExpr
+from logic_asts.ltl import Sequence as Sequence
 from logic_asts.ltl import ltl_expr_iter as ltl_expr_iter
 from logic_asts.spec import Expr as Expr
 from logic_asts.spec import ExprVisitor as ExprVisitor
@@ -66,7 +67,7 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
     if isinstance(obj, Expr):
         return all(
             is_propositional_logic(expr, var_type)
-            or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until | ltl.Release)
+            or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until | ltl.Release | ltl.Sequence)
             for expr in obj.iter_subtree()
         )
 
@@ -165,6 +166,7 @@ __all__ = [
     "Implies",
     "LTLExpr",
     "Literal",
+    "Sequence",
     "Not",
     "Or",
     "STLGOExpr",
