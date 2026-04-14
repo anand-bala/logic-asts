@@ -98,6 +98,74 @@ result = simple_eval(formula, {"p", "q"})
 result = simple_eval(formula, {"p"})
 ```
 
+## Type-safe tree traversal
+
+The most convenient way to walk an expression tree is `expr.iter_subtree()`,
+but its return type is `Iterator[Expr]`. If you need mypy (or pyright) to know
+the precise element type, reach for one of the patterns below.
+
+### Pattern 1 -- typed iterator (preferred)
+
+When you already hold a typed expression, call the matching iterator directly:
+
+```python
+from logic_asts import ltl_expr_iter, parse_expr
+
+expr = parse_expr("G (p U q)", syntax="ltl")  # LTLExpr[str]
+for node in ltl_expr_iter(expr):              # Iterator[LTLExpr[str]]
+    ...
+```
+
+| Your type | Iterator to use |
+|-----------|----------------|
+| `BoolExpr[AP]` / `BaseExpr[AP]` | `bool_expr_iter(expr)` |
+| `LTLExpr[AP]` | `ltl_expr_iter(expr)` |
+| `STRELExpr[AP]` | `strel_expr_iter(expr)` |
+| `STLGOExpr[AP]` | `stlgo_expr_iter(expr)` |
+
+All four functions also validate that the subtree contains no out-of-dialect
+nodes and raise `TypeError` at runtime if it does.
+
+### Pattern 2 -- type-guard then typed iterator
+
+When the static type is just `Expr` (e.g. coming from an untyped API), narrow
+it first:
+
+```python
+from logic_asts import Expr, is_ltl_expr, ltl_expr_iter
+
+def process(expr: Expr) -> None:
+    if is_ltl_expr(expr, str):            # narrows to LTLExpr[str]
+        for node in ltl_expr_iter(expr):  # Iterator[LTLExpr[str]]
+            ...
+```
+
+### Pattern 3 -- filter to a single node class
+
+Use the `kind=` argument on `iter_subtree` to visit only one concrete class.
+The full tree is still traversed, but only matching nodes are yielded:
+
+```python
+from logic_asts import Variable, parse_expr
+
+expr = parse_expr("G (p U q)", syntax="ltl")
+for v in expr.iter_subtree(kind=Variable):  # Iterator[Variable[Any]]
+    print(v.name)
+```
+
+### Pattern 4 -- custom type subset with `ExprVisitor`
+
+For arbitrary subsets of node types, construct an `ExprVisitor` directly.
+It both validates the tree and yields a typed iterator:
+
+```python
+from logic_asts import ExprVisitor, And, Or, Not, Variable
+
+for node in ExprVisitor((And, Or, Not, Variable), expr):
+    # node: And | Or | Not | Variable[Any]
+    ...
+```
+
 ## Contributing
 
 Contributions are welcome.

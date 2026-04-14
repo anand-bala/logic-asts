@@ -503,7 +503,12 @@ class Release(Expr):
 
 Var = TypeVar("Var")
 LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release
-"""LTL expression types"""
+"""LTL expression types.
+
+Use :func:`logic_asts.ltl_expr_iter` to iterate over the subtree of an
+``LTLExpr[AP]`` with full static type information (returns
+``Iterator[LTLExpr[AP]]``).
+"""
 
 
 def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:

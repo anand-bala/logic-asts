@@ -180,7 +180,7 @@ class And(Expr):
         return max(arg.horizon() for arg in self.args)
 
     @override
-    def __and__(self, other: Expr) -> Expr:
+    def __and__(self, other: Expr) -> And:
         if isinstance(other, And):
             return And(self.args + other.args)
         return And(self.args + (other,))
@@ -224,7 +224,7 @@ class Or(Expr):
         return max(arg.horizon() for arg in self.args)
 
     @override
-    def __or__(self, other: Expr) -> Expr:
+    def __or__(self, other: Expr) -> Or:
         if isinstance(other, Or):
             return Or(self.args + other.args)
         return Or(self.args + (other,))
@@ -371,10 +371,20 @@ class Literal(Expr):
 
 
 BaseExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
-"""Propositional logic expression types"""
+"""Propositional logic expression types.
+
+Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
+``BaseExpr[AP]`` with full static type information (returns
+``Iterator[BaseExpr[AP]]``).
+"""
 
 BoolExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
-"""Propositional logic expression types"""
+"""Propositional logic expression types (alias for :data:`BaseExpr`).
+
+Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
+``BoolExpr[AP]`` with full static type information (returns
+``Iterator[BoolExpr[AP]]``).
+"""
 
 
 def is_bool_expr(expr: object, var_type: type[Var] | None = None) -> typing.TypeGuard[BoolExpr[Var]]:

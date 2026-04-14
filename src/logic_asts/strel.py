@@ -301,7 +301,12 @@ class Reach(Expr):
 
 Var = TypeVar("Var")
 STRELExpr: TypeAlias = LTLExpr[Var] | Everywhere | Somewhere | Reach | Escape
-"""STREL Expression Types"""
+"""STREL expression types.
+
+Use :func:`logic_asts.strel_expr_iter` to iterate over the subtree of a
+``STRELExpr[AP]`` with full static type information (returns
+``Iterator[STRELExpr[AP]]``).
+"""
 
 
 def strel_expr_iter(expr: STRELExpr[Var]) -> Iterator[STRELExpr[Var]]:

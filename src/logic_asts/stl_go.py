@@ -366,6 +366,12 @@ class GraphOutgoing(Expr):
 
 Var = TypeVar("Var")
 STLGOExpr: TypeAlias = LTLExpr[Var] | GraphIncoming | GraphOutgoing
+"""STL-GO expression types.
+
+Use :func:`logic_asts.stlgo_expr_iter` to iterate over the subtree of a
+``STLGOExpr[AP]`` with full static type information (returns
+``Iterator[STLGOExpr[AP]]``).
+"""
 
 
 def stlgo_expr_iter(expr: STLGOExpr[Var]) -> Iterator[STLGOExpr[Var]]:

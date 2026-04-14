@@ -62,17 +62,47 @@ class Expr(ABC):
             Iterator of child expressions.
         """
 
-    def iter_subtree(self) -> Iterator[Expr]:
+    @overload
+    def iter_subtree(self) -> Iterator[Expr]: ...
+
+    @overload
+    def iter_subtree(self, *, kind: type[_T]) -> Iterator[_T]: ...
+
+    def iter_subtree(self, *, kind: type[Expr] | None = None) -> Iterator[Expr]:
         r"""Perform post-order traversal of the expression tree.
 
         Iterates over all sub-expressions in post-order, visiting each
         expression exactly once. In post-order, children are yielded before
         their parents, making this suitable for bottom-up processing.
 
+        Args:
+            kind: Optional concrete node class to filter by. When given,
+                only nodes that are instances of ``kind`` are yielded, but
+                the entire tree is still traversed. The return type is
+                narrowed to ``Iterator[kind]`` by the type-checker.
+
         Yields:
-            Each node in the expression tree in post-order sequence.
+            Each node in the expression tree in post-order sequence, filtered
+            to instances of ``kind`` when that argument is supplied.
+
+        Note:
+            This method returns ``Iterator[Expr]`` (or ``Iterator[kind]`` with
+            the ``kind`` argument), which is sufficient for most uses. When you
+            need a fully-typed ``Iterator[LTLExpr[AP]]`` (or another dialect
+            union), use the corresponding typed iterator instead:
+
+            - :func:`logic_asts.bool_expr_iter` for ``BoolExpr[AP]``
+            - :func:`logic_asts.ltl_expr_iter` for ``LTLExpr[AP]``
+            - :func:`logic_asts.strel_expr_iter` for ``STRELExpr[AP]``
+            - :func:`logic_asts.stlgo_expr_iter` for ``STLGOExpr[AP]``
+
+            Those functions also validate that the tree contains no
+            out-of-dialect nodes, raising ``TypeError`` if it does.
         """
-        return iter(ExprVisitor[Expr](Expr, self))
+        nodes = iter(ExprVisitor[Expr](Expr, self))
+        if kind is None:
+            return nodes
+        return (node for node in nodes if isinstance(node, kind))
 
     @overload
     def atomic_predicates(self, *, assume_nnf: ty.Literal[True]) -> Iterator[Variable[Var] | Not]: ...
@@ -167,7 +197,15 @@ class Expr(ABC):
         r"""Logical negation operator (~).
 
         Returns:
-            A Not expression wrapping this expression.
+            A ``Not`` expression wrapping this expression.
+
+        Note:
+            The static return type is ``Expr`` rather than ``Not`` because
+            ``Not.__invert__`` performs double-negation elimination and returns
+            ``self.arg`` (an arbitrary ``Expr``), which would violate LSP if
+            the base were narrowed to ``Not``.  When you know your operand is
+            not a ``Not`` node, ``isinstance``-narrowing or a cast is the
+            correct workaround.
         """
         from logic_asts.base import Not
 
@@ -177,7 +215,16 @@ class Expr(ABC):
         r"""Logical conjunction operator (&).
 
         Returns:
-            An And expression joining this and other.
+            An ``And`` expression joining this and other.
+
+        Note:
+            The static return type is ``Expr`` rather than ``And`` because
+            ``Literal.__and__`` may return ``self``, ``Literal(...)``, or
+            ``other`` unchanged (constant-folding), all of which widen the
+            type to ``Expr``.  Calling ``&`` on a concrete non-``Literal``
+            type (e.g. ``And``, ``Or``, ``Variable``) will return ``And``
+            at runtime; use ``And.__and__`` (annotated ``-> And``) or a
+            cast where the narrower type matters.
         """
         from logic_asts.base import And
 
@@ -187,7 +234,15 @@ class Expr(ABC):
         r"""Logical disjunction operator (|).
 
         Returns:
-            An Or expression joining this and other.
+            An ``Or`` expression joining this and other.
+
+        Note:
+            The static return type is ``Expr`` rather than ``Or`` because
+            ``Literal.__or__`` may return ``self``, ``Literal(...)``, or
+            ``other`` unchanged (constant-folding).  Calling ``|`` on a
+            concrete non-``Literal`` type will return ``Or`` at runtime;
+            use ``Or.__or__`` (annotated ``-> Or``) or a cast where the
+            narrower type matters.
         """
         from logic_asts.base import Or
 
