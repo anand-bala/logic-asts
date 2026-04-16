@@ -31,6 +31,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 exclude = [".jj"]
 
+[tool.uv]
+exclude-newer = "30 days"
+
 [tool.pytest]
 addopts = ["--import-mode=importlib", "--doctest-modules", "--mypy"]
 testpaths = ["tests", "src"]
