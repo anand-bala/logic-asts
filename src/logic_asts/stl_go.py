@@ -6,8 +6,8 @@ Signal Temporal Logic with Graph Operators (STL-GO) allows quantification over
 edges in graphs with weight and count constraints.
 
 Core Graph Operators:
-    - GraphIncoming: $\text{In}^{(W,\\#)}_\text{(G,E)} \phi$ - incoming edges
-    - GraphOutgoing: $\text{Out}^{(W,\\#)}_\text{(G,E)} \psi$ - outgoing edges
+    - GraphIncoming: :math:`\text{In}^{(W,\#)}_\text{(G,E)} \phi` - incoming edges
+    - GraphOutgoing: :math:`\text{Out}^{(W,\#)}_\text{(G,E)} \psi` - outgoing edges
 
 Constraints on Graph Operators:
     Operators are parameterized by:
@@ -66,7 +66,7 @@ from logic_asts.utils import check_positive, check_start, check_weight_start
 @final
 @frozen
 class WeightInterval:
-    r"""Weight constraint for graph operators: interval $[w_1, w_2]$.
+    r"""Weight constraint for graph operators: interval :math:`[w_1, w_2]`.
 
     Represents an interval of edge weights in graph operators. Weights are
     continuous (float) values, allowing both positive and negative weights.
@@ -74,7 +74,7 @@ class WeightInterval:
 
     Attributes:
         start: Lower bound on weight (inclusive), or None for no lower bound
-            (treated as $-\infty$).
+            (treated as :math:`-\infty`).
         end: Upper bound on weight (inclusive), or None for unbounded.
 
     Examples:
@@ -84,9 +84,9 @@ class WeightInterval:
         - Right unbounded: WeightInterval(0.1, None)   represents [0.1, inf)
         - Fully unbounded: WeightInterval(None, None)  represents [-inf, inf)
 
-    Validators:
+    Note:
         - start must be <= end if both are non-None
-        - Note: no point interval restriction (start can equal end)
+        - No point interval restriction (start can equal end)
     """
 
     start: float | None = attrs.field(default=None, validator=[check_weight_start])
@@ -104,11 +104,11 @@ class WeightInterval:
         r"""Calculate the span of the weight interval.
 
         Computes the length of the interval, treating None as:
-        - start = None as $-\infty$
-        - end = None as $+\infty$
+        - start = None as :math:`-\infty`
+        - end = None as :math:`+\infty`
 
         Returns:
-            The length $w_2 - w_1$ where $w_1$ is start and $w_2$ is end.
+            The length :math:`w_2 - w_1` where :math:`w_1` is start and :math:`w_2` is end.
         """
         start = self.start or 0.0
         end = self.end or math.inf
@@ -123,7 +123,7 @@ class WeightInterval:
         return self.end is None or math.isinf(self.end)
 
     def is_all_weights(self) -> bool:
-        r"""Check if the interval represents all weights $[-\infty, +\infty]$.
+        r"""Check if the interval represents all weights :math:`[-\infty, +\infty]`.
 
         Returns:
             True if this interval covers all possible weight values.
@@ -136,7 +136,7 @@ class WeightInterval:
 @final
 @frozen
 class EdgeCountInterval:
-    r"""Edge count constraint for graph operators: interval $[e_1, e_2]$.
+    r"""Edge count constraint for graph operators: interval :math:`[e_1, e_2]`.
 
     Represents an interval specifying the number of edges required in graph
     operators. Counts are non-negative integers. None represents unboundedness.
@@ -152,7 +152,7 @@ class EdgeCountInterval:
         - Right unbounded: EdgeCountInterval(3, None)  represents [3, infinity)
         - Fully unbounded: EdgeCountInterval(None, None)  represents [0, infinity)
 
-    Validators:
+    Note:
         - start and end must be non-negative integers
         - start must be <= end if both are non-None
         - No point intervals (start == end not allowed if both are non-None)
@@ -177,7 +177,7 @@ class EdgeCountInterval:
         - end = None as infinity
 
         Returns:
-            The length $e_2 - e_1$ where $e_1$ is start and $e_2$ is end.
+            The length :math:`e_2 - e_1` where :math:`e_1` is start and :math:`e_2` is end.
         """
         start = self.start or 0
         end = self.end or math.inf
@@ -200,15 +200,15 @@ class Quantifier(enum.Enum):
     When negating a graph operator, the quantifier is flipped as per De Morgan's
     laws.
 
-    Members:
+    Attributes:
         EXISTS: Existential quantifier. At least one graph type satisfies
             the property. Represented as E or exists.
         FORALL: Universal quantifier. All graph types satisfy the property.
             Represented as A or forall.
 
-    Semantics of Quantifier Negation:
+    Note:
         When negating a graph operator, existential becomes universal:
-        $\neg(\exists g. \text{In}^W_\text{(g,E)} \phi) = \forall g. \text{In}^W_\text{(g,E)} \neg\phi$
+        :math:`\neg(\exists g. \text{In}^W_\text{(g,E)} \phi) = \forall g. \text{In}^W_\text{(g,E)} \neg\phi`
     """
 
     EXISTS = "exists"
@@ -245,7 +245,7 @@ class Quantifier(enum.Enum):
 @final
 @frozen
 class GraphIncoming(Expr):
-    r"""Incoming graph operator: $\text{In}^{(W,\\#)}_\text{(G,E)} \phi$.
+    r"""Incoming graph operator: :math:`\text{In}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over incoming edges to an agent. Asserts that there exist
     (or for all, depending on quantifier) graph types G from which edges
@@ -257,12 +257,12 @@ class GraphIncoming(Expr):
     in interval E, and the subformula holds at the source agents.
 
     Attributes:
-        arg: Subformula $\phi$ to evaluate on agents with incoming edges.
+        arg: Subformula :math:`\phi` to evaluate on agents with incoming edges.
         graphs: Set of graph type identifiers (e.g., {'c', 's'} for
             "communication" and "sensing" graphs).
-        edge_count: Interval $E = [e_1, e_2]$ constraining the number of
+        edge_count: Interval :math:`E = [e_1, e_2]` constraining the number of
             incoming edges required.
-        weights: Interval $W = [w_1, w_2]$ constraining allowed edge weights.
+        weights: Interval :math:`W = [w_1, w_2]` constraining allowed edge weights.
         quantifier: Quantification type (EXISTS or FORALL) over graph types.
             EXISTS: at least one graph type; FORALL: all graph types.
 
@@ -306,7 +306,7 @@ class GraphIncoming(Expr):
 @final
 @frozen
 class GraphOutgoing(Expr):
-    r"""Outgoing graph operator: $\text{Out}^{(W,\\#)}_\text{(G,E)} \phi$.
+    r"""Outgoing graph operator: :math:`\text{Out}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over outgoing edges from an agent. Asserts that there exist
     (or for all, depending on quantifier) graph types G to which edges with
@@ -318,12 +318,12 @@ class GraphOutgoing(Expr):
     in interval E, and the subformula holds at the destination agents.
 
     Attributes:
-        arg: Subformula $\phi$ to evaluate on agents with outgoing edges.
+        arg: Subformula :math:`\phi` to evaluate on agents with outgoing edges.
         graphs: Set of graph type identifiers (e.g., {'c', 's'} for
             "communication" and "sensing" graphs).
-        edge_count: Interval $E = [e_1, e_2]$ constraining the number of
+        edge_count: Interval :math:`E = [e_1, e_2]` constraining the number of
             outgoing edges required.
-        weights: Interval $W = [w_1, w_2]$ constraining allowed edge weights.
+        weights: Interval :math:`W = [w_1, w_2]` constraining allowed edge weights.
         quantifier: Quantification type (EXISTS or FORALL) over graph types.
             EXISTS: at least one graph type; FORALL: all graph types.
 
@@ -381,13 +381,13 @@ def stlgo_expr_iter(expr: STLGOExpr[Var]) -> Iterator[STLGOExpr[Var]]:
     expression exactly once. In post-order, children are yielded before
     their parents, making this suitable for bottom-up processing.
 
-    Moreover, it ensures that each subexpression is a `STLGOExpr`.
+    Moreover, it ensures that each subexpression is a ``STLGOExpr``.
 
     Yields:
         Each node in the expression tree in post-order sequence.
 
     Raises:
-        TypeError: If the expression contains a subexpression that is not an `STLGOExpr`
+        TypeError: If the expression contains a subexpression that is not a ``STLGOExpr``
 
     """
     return iter(

@@ -37,14 +37,14 @@ Var = TypeVar("Var", bound=Hashable)
 @final
 @frozen
 class Implies(Expr):
-    r"""Logical implication operator: $\phi \to \psi$.
+    r"""Logical implication operator: :math:`\phi \to \psi`.
 
     Represents "if phi then psi" or equivalently "not phi or psi".
     This is a derived operator that can be expanded to its basic form.
 
     Attributes:
-        lhs: Left-hand side formula ($\phi$, the antecedent).
-        rhs: Right-hand side formula ($\psi$, the consequent).
+        lhs: Left-hand side formula (:math:`\phi`, the antecedent).
+        rhs: Right-hand side formula (:math:`\psi`, the consequent).
     """
 
     lhs: Expr
@@ -71,10 +71,10 @@ class Implies(Expr):
 @final
 @frozen
 class Equiv(Expr):
-    r"""Logical equivalence operator: $\phi \equiv \psi$.
+    r"""Logical equivalence operator: :math:`\phi \equiv \psi`.
 
     Represents "phi if and only if psi" or equivalently
-    $(\phi \land \psi) \lor (\neg\phi \land \neg\psi)$.
+    :math:`(\phi \land \psi) \lor (\neg\phi \land \neg\psi)`.
     This is a derived operator that can be expanded to its basic form.
 
     Attributes:
@@ -108,15 +108,15 @@ class Equiv(Expr):
 @final
 @frozen
 class Xor(Expr):
-    r"""Exclusive or operator: $\phi \oplus \psi$.
+    r"""Exclusive or operator: :math:`\phi \oplus \psi`.
 
     Represents "phi or psi but not both" or equivalently
-    $(\phi \land \neg\psi) \lor (\neg \phi \land \psi)$.
+    :math:`(\phi \land \neg\psi) \lor (\neg \phi \land \psi)`.
     This is a derived operator that can be expanded to its basic form.
 
     Attributes:
-        lhs: Left-hand side formula ($\phi$).
-        rhs: Right-hand side formula ($\psi$).
+        lhs: Left-hand side formula (:math:`\phi`).
+        rhs: Right-hand side formula (:math:`\psi`).
     """
 
     lhs: Expr
@@ -145,17 +145,17 @@ class Xor(Expr):
 @final
 @frozen
 class And(Expr):
-    r"""Conjunction operator: $\phi_1 \wedge \phi_2 \wedge \cdots \wedge \phi_n$.
+    r"""Conjunction operator: :math:`\phi_1 \wedge \phi_2 \wedge \cdots \wedge \phi_n`.
 
     Represents the logical conjunction of multiple formulas. Requires at least
-    two operands. Can be created using the `&` operator.
+    two operands. Can be created using the ``&`` operator.
 
     Attributes:
         args: Tuple of at least 2 sub-expressions to be conjoined.
 
     Examples:
-        - Using operator: `p & q & r`
-        - Using constructor: `And((p, q, r))`
+        - Using operator: ``p & q & r``
+        - Using constructor: ``And((p, q, r))``
     """
 
     args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
@@ -189,17 +189,17 @@ class And(Expr):
 @final
 @frozen
 class Or(Expr):
-    r"""Disjunction operator: $\phi_1 \vee \phi_2 \vee \cdots \vee \phi_n$.
+    r"""Disjunction operator: :math:`\phi_1 \vee \phi_2 \vee \cdots \vee \phi_n`.
 
     Represents the logical disjunction of multiple formulas. Requires at least
-    two operands. Can be created using the `|` operator.
+    two operands. Can be created using the ``|`` operator.
 
     Attributes:
         args: Tuple of at least 2 sub-expressions to be disjoined.
 
     Examples:
-        - Using operator: `p | q | r`
-        - Using constructor: `Or((p, q, r))`
+        - Using operator: ``p | q | r``
+        - Using constructor: ``Or((p, q, r))``
     """
 
     args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
@@ -233,17 +233,17 @@ class Or(Expr):
 @final
 @frozen
 class Not(Expr):
-    r"""Negation operator: $\neg\phi$.
+    r"""Negation operator: :math:`\neg\phi`.
 
-    Represents the logical negation of a formula. Can be created using the `~` operator.
+    Represents the logical negation of a formula. Can be created using the ``~`` operator.
     Supports double-negation elimination.
 
     Attributes:
         arg: The sub-expression to be negated.
 
     Examples:
-        - Using operator: `~p`
-        - Using constructor: `Not(Variable("p"))`
+        - Using operator: ``~p``
+        - Using constructor: ``Not(Variable("p"))``
     """
 
     arg: Expr
@@ -254,7 +254,7 @@ class Not(Expr):
 
     @override
     def __invert__(self) -> Expr:
-        r"""Eliminate double negation: $\neg(\neg\phi) = \phi$."""
+        r"""Eliminate double negation: :math:`\neg(\neg\phi) = \phi`."""
         return self.arg
 
     @override
@@ -285,9 +285,9 @@ class Variable(Expr, Generic[Var]):
         name: The variable identifier of type Var.
 
     Examples:
-        - String variables: `Variable("p")`, `Variable("x1")`
-        - Tuple variables: `Variable(("a", 0))`
-        - Integer variables: `Variable(42)`
+        - String variables: ``Variable("p")``, ``Variable("x1")``
+        - Tuple variables: ``Variable(("a", 0))``
+        - Integer variables: ``Variable(42)``
     """
 
     name: Var
@@ -321,9 +321,9 @@ class Literal(Expr):
         value: Boolean value, either True or False.
 
     Examples:
-        - True constant: `Literal(True)`
-        - False constant: `Literal(False)`
-        - Negation: `~Literal(True)` returns `Literal(False)`
+        - True constant: ``Literal(True)``
+        - False constant: ``Literal(False)``
+        - Negation: ``~Literal(True)`` returns ``Literal(False)``
     """
 
     value: bool
@@ -334,7 +334,7 @@ class Literal(Expr):
 
     @override
     def __invert__(self) -> Literal:
-        r"""Negate the literal: $\neg\text{true} = \text{false}$."""
+        r"""Negate the literal: :math:`\neg\text{true} = \text{false}`."""
         return Literal(not self.value)
 
     @override
@@ -388,12 +388,12 @@ Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
 
 
 def is_bool_expr(expr: object, var_type: type[Var] | None = None) -> typing.TypeGuard[BoolExpr[Var]]:
-    """Checks if the given object is a `BoolExpr`.
+    """Checks if the given object is a ``BoolExpr``.
 
-    Unlike `logic_asts.is_propositional_logic`, it does not recursively check if subexpressions are of the expected type.
+    Unlike :func:`logic_asts.is_propositional_logic`, it does not recursively check if subexpressions are of the expected type.
 
-    > [!WARNING]
-    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    Warning:
+        Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     # Extract origin if it's a subscripted generic
     check_type = typing.get_origin(var_type) or var_type if var_type else None
@@ -412,13 +412,13 @@ def bool_expr_iter(expr: BoolExpr[Var]) -> Iterator[BoolExpr[Var]]:
     expression exactly once. In post-order, children are yielded before
     their parents, making this suitable for bottom-up processing.
 
-    Moreover, it ensures that each subexpression is a `BoolExpr`.
+    Moreover, it ensures that each subexpression is a ``BoolExpr``.
 
     Yields:
         Each node in the expression tree in post-order sequence.
 
     Raises:
-        TypeError: If the expression contains a subexpression that is not a `BoolExpr`
+        TypeError: If the expression contains a subexpression that is not a ``BoolExpr``
 
     """
     return iter(
@@ -515,4 +515,3 @@ __all__ = [
     "bool_expr_iter",
 ]
 
-__docformat__ = "google"

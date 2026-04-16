@@ -42,6 +42,9 @@ lint: fmt type-check
 test:
     uv run --dev --frozen pytest --lf
 
+docs:
+    uv run --dev --frozen sphinx-build -b html docs/ docs/_build/html
+
 # Sync virtual environment
 sync-venv:
     uv sync --all-packages --frozen --inexact --dev

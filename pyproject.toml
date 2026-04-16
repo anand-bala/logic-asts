@@ -12,7 +12,8 @@ dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 dev = [
   "ipython",
   "mypy",
-  "pdoc",
+  "sphinx",
+  "myst-parser",
   "pytest",
   "rich",
   "ruff",

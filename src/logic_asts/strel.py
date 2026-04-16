@@ -6,10 +6,10 @@ Spatio-Temporal Reach-Escape Logic (STREL) combines temporal quantifiers
 (from LTL) with spatial distance constraints.
 
 Core Spatial Operators:
-    - Everywhere: $\text{everywhere}^d \phi$ - property holds within distance d
-    - Somewhere: $\text{somewhere}^d \phi$ - property holds somewhere within distance d
-    - Reach: $\phi \leadsto^d \psi$ - from phi, can reach psi within distance d
-    - Escape: $\text{escape}^d \phi$ - can escape region where phi holds
+    - Everywhere: :math:`\text{everywhere}^d \phi` - property holds within distance d
+    - Somewhere: :math:`\text{somewhere}^d \phi` - property holds somewhere within distance d
+    - Reach: :math:`\phi \leadsto^d \psi` - from phi, can reach psi within distance d
+    - Escape: :math:`\text{escape}^d \phi` - can escape region where phi holds
 
 Space and Distance:
     - Distance intervals [start, end] constrain spatial neighborhoods.
@@ -64,7 +64,7 @@ from logic_asts.utils import check_positive, check_start
 @final
 @frozen
 class DistanceInterval:
-    r"""Distance constraint for spatial operators: interval $[d_1, d_2]$.
+    r"""Distance constraint for spatial operators: interval :math:`[d_1, d_2]`.
 
     Represents a distance interval for constraining spatial neighborhoods.
     The interval is closed on both ends. None represents unboundedness at
@@ -76,12 +76,12 @@ class DistanceInterval:
         end: Upper bound on distance (inclusive), or None for unbounded.
 
     Examples:
-        - Bounded: `DistanceInterval(0, 10)`     represents $[0,10]$
-        - Left unbounded: `DistanceInterval(None, 20)`  represents $[0,20]$
-        - Right unbounded: `DistanceInterval(5.5, None)`  represents $[5.5,\infty)$
-        - Fully unbounded: `DistanceInterval(None, None)`  represents $[0,\infty)$
+        - Bounded: ``DistanceInterval(0, 10)``     represents :math:`[0,10]`
+        - Left unbounded: ``DistanceInterval(None, 20)``  represents :math:`[0,20]`
+        - Right unbounded: ``DistanceInterval(5.5, None)``  represents :math:`[5.5,\infty)`
+        - Fully unbounded: ``DistanceInterval(None, None)``  represents :math:`[0,\infty)`
 
-    Validators:
+    Note:
         - start and end must be non-negative
         - start must be <= end if both are non-None
         - No point intervals (start == end not allowed)
@@ -104,11 +104,11 @@ class DistanceInterval:
 @final
 @frozen
 class Everywhere(Expr):
-    r"""Universal spatial operator: $\square^d \phi$.
+    r"""Universal spatial operator: :math:`\square^d \phi`.
 
     Asserts that the formula holds everywhere within the distance interval.
-    The formula $\square^d \phi$ holds if $\phi$ holds at all points within
-    distance $d$ from the reference point.
+    The formula :math:`\square^d \phi` holds if :math:`\phi` holds at all points within
+    distance :math:`d` from the reference point.
 
     Attributes:
         arg: The sub-formula that must hold everywhere.
@@ -151,11 +151,11 @@ class Everywhere(Expr):
 @final
 @frozen
 class Somewhere(Expr):
-    r"""Existential spatial operator: $\diamond^d \phi$.
+    r"""Existential spatial operator: :math:`\diamond^d \phi`.
 
     Asserts that the formula holds somewhere within the distance interval.
-    The formula $\diamond^d \phi$ holds if $\phi$ holds at some point within
-    distance $d$ from the reference point.
+    The formula :math:`\diamond^d \phi` holds if :math:`\phi` holds at some point within
+    distance :math:`d` from the reference point.
 
     Attributes:
         arg: The sub-formula that must hold somewhere.
@@ -243,15 +243,15 @@ class Escape(Expr):
 @final
 @frozen
 class Reach(Expr):
-    r"""Reachability operator: $\phi \leadsto^d \psi$.
+    r"""Reachability operator: :math:`\phi \leadsto^d \psi`.
 
-    Binary spatial operator asserting reachability. The formula $\phi \leadsto^d \psi$
-    holds if, starting from a state where $\phi$ is true, one can reach a state
-    within distance $d$ where $\psi$ is true.
+    Binary spatial operator asserting reachability. The formula :math:`\phi \leadsto^d \psi`
+    holds if, starting from a state where :math:`\phi` is true, one can reach a state
+    within distance :math:`d` where :math:`\psi` is true.
 
     Attributes:
-        lhs: The starting condition formula ($\phi$).
-        rhs: The target condition formula ($\psi$).
+        lhs: The starting condition formula (:math:`\phi`).
+        rhs: The target condition formula (:math:`\psi`).
         interval: Distance constraint [start, end] for the reachability.
         dist_fn: Optional distance metric function name. None uses default.
 
@@ -316,13 +316,13 @@ def strel_expr_iter(expr: STRELExpr[Var]) -> Iterator[STRELExpr[Var]]:
     expression exactly once. In post-order, children are yielded before
     their parents, making this suitable for bottom-up processing.
 
-    Moreover, it ensures that each subexpression is a `STRELExpr`.
+    Moreover, it ensures that each subexpression is a ``STRELExpr``.
 
     Yields:
         Each node in the expression tree in post-order sequence.
 
     Raises:
-        TypeError: If the expression contains a subexpression that is not an `STRELExpr`
+        TypeError: If the expression contains a subexpression that is not a ``STRELExpr``
 
     """
     return iter(

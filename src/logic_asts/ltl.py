@@ -2,16 +2,17 @@ r"""Abstract syntax trees for linear temporal logic (LTL).
 
 This module extends propositional logic with temporal operators for specifying
 LTL properties:
-    - X (Next): $X\phi$ asserts that $\phi$ holds at the next time step
-    - F (Eventually): $F\phi$ asserts that $\phi$ holds at some future time
-    - G (Always): $G\phi$ asserts that $\phi$ holds at all future times
-    - U (Until): $\phi U \psi$ asserts $\phi$ holds until $\psi$ becomes true
-    - R (Release): $\phi R \psi$ asserts $\psi$ holds unless/until $\phi$ becomes true
+
+- X (Next): :math:`X\phi` asserts that :math:`\phi` holds at the next time step
+- F (Eventually): :math:`F\phi` asserts that :math:`\phi` holds at some future time
+- G (Always): :math:`G\phi` asserts that :math:`\phi` holds at all future times
+- U (Until): :math:`\phi U \psi` asserts :math:`\phi` holds until :math:`\psi` becomes true
+- R (Release): :math:`\phi R \psi` asserts :math:`\psi` holds unless/until :math:`\phi` becomes true
 
 Time Constraints:
     Operators can be constrained with time intervals [start, end]:
-    - $F_{[0,10]}\phi$: phi holds within the next 10 time steps
-    - $G_{[5,\infty)}\phi$: phi always holds from time 5 onward
+    - :math:`F_{[0,10]}\phi`: phi holds within the next 10 time steps
+    - :math:`G_{[5,\infty)}\phi`: phi always holds from time 5 onward
 
 Key Classes:
     - TimeInterval: Represents time bounds [start, end]
@@ -67,7 +68,7 @@ from logic_asts.utils import check_positive, check_start
 @final
 @frozen
 class TimeInterval:
-    r"""Time constraint for temporal operators: interval $[a,b]$.
+    r"""Time constraint for temporal operators: interval :math:`[a,b]`.
 
     Represents a time interval for constraining when temporal properties must
     hold. The interval is closed on both ends. None represents unboundedness
@@ -79,12 +80,12 @@ class TimeInterval:
         end: Upper bound (inclusive), or None for unbounded.
 
     Examples:
-        - Bounded: `TimeInterval(0, 10)`    represents $[0,10]$
-        - Left unbounded: `TimeInterval(None, 20)`  represents $[0,20]$
-        - Right unbounded: `TimeInterval(5, None)`  represents $[5,\infty)$
-        - Fully unbounded: `TimeInterval(None, None)`  represents $[0,\infty)$
+        - Bounded: `TimeInterval(0, 10)`    represents :math:`[0,10]`
+        - Left unbounded: `TimeInterval(None, 20)`  represents :math:`[0,20]`
+        - Right unbounded: `TimeInterval(5, None)`  represents :math:`[5,\infty)`
+        - Fully unbounded: `TimeInterval(None, None)`  represents :math:`[0,\infty)`
 
-    Validators:
+    Note:
         - start and end must be non-negative
         - start must be <= end
         - No point intervals (start == end not allowed if both are non-None)
@@ -111,7 +112,7 @@ class TimeInterval:
         - end = None as infinity
 
         Returns:
-            The length $b - a$ where $a$ is start and $b$ is end.
+            The length :math:`b - a` where :math:`a` is start and :math:`b` is end.
         """
         start = self.start or 0
         end = self.end or math.inf
@@ -127,7 +128,7 @@ class TimeInterval:
         return self.end is None or math.isinf(self.end)
 
     def is_untimed(self) -> bool:
-        r"""Check if the interval represents the unbounded future $[0, \infty)$.
+        r"""Check if the interval represents the unbounded future :math:`[0, \infty)`.
 
         Returns:
             True if this is effectively [0, infinity), False otherwise.
@@ -172,12 +173,12 @@ class TimeInterval:
 @final
 @frozen
 class Next(Expr):
-    r"""Next operator: $X\phi$ or $X^n\phi$.
+    r"""Next operator: :math:`X\phi` or :math:`X^n\phi`.
 
-    Asserts that the formula holds in the next time step(s). A formula $X\phi$
-    holds at time $t$ if $\phi$ holds at time $t+1$.
+    Asserts that the formula holds in the next time step(s). A formula :math:`X\phi`
+    holds at time :math:`t` if :math:`\phi` holds at time :math:`t+1`.
 
-    For $X^n\phi$, the formula must hold at time $t+n$, which is equivalent to
+    For :math:`X^n\phi`, the formula must hold at time :math:`t+n`, which is equivalent to
     nesting n Next operators.
 
     Attributes:
@@ -191,9 +192,9 @@ class Next(Expr):
         - Multiple steps: `X[5] p`  (p holds in 5 time steps)
         - Nested: `X(X(X p))`  (p holds 3 steps ahead)
 
-    Horizon:
-        - The horizon is `1 + horizon(arg)` for single step.
-        - For $X^n$: `n + horizon(arg)`.
+    Note:
+        - The horizon is ``1 + horizon(arg)`` for single step.
+        - For :math:`X^n`: ``n + horizon(arg)``.
     """
 
     arg: Expr
@@ -237,26 +238,26 @@ class Next(Expr):
 @final
 @frozen
 class Always(Expr):
-    r"""Always (globally) operator: $G\phi$ or $G_{[a,b]}\phi$.
+    r"""Always (globally) operator: :math:`G\phi` or :math:`G_{[a,b]}\phi`.
 
-    Asserts that the formula holds at all future time steps. The formula $G\phi$
-    holds at time $t$ if $\phi$ holds at all times $\geq t$.
+    Asserts that the formula holds at all future time steps. The formula :math:`G\phi`
+    holds at time :math:`t` if :math:`\phi` holds at all times :math:`\geq t`.
 
-    With time constraint $G_{[a,b]}\phi$, the formula must hold for all times
-    in the interval `[a,b]`.
+    With time constraint :math:`G_{[a,b]}\phi`, the formula must hold for all times
+    in the interval ``[a,b]``.
 
     Attributes:
         arg: The sub-formula that must always hold.
         interval: Time constraint for when the formula must hold. Defaults to
-            unbounded $[0,\infty)$.
+            unbounded :math:`[0,\infty)`.
 
     Examples:
         - Unbounded: G ~error  (error never occurs)
         - Bounded: G[0,10] ready  (ready holds for the next 10 steps)
         - With propositional: G (request -> F response)
 
-    Semantics:
-        `G phi` is equivalent to `~F(~phi)` (negation of eventually not phi).
+    Note:
+        Semantics: ``G phi`` is equivalent to ``~F(~phi)`` (negation of eventually not phi).
     """
 
     arg: Expr
@@ -304,26 +305,26 @@ class Always(Expr):
 @final
 @frozen
 class Eventually(Expr):
-    r"""Eventually (future) operator: $F\phi$ or $F_{[a,b]}\phi$.
+    r"""Eventually (future) operator: :math:`F\phi` or :math:`F_{[a,b]}\phi`.
 
-    Asserts that the formula will hold at some future time. The formula $F\phi$
-    holds at time $t$ if $\phi$ holds at some time $\geq t$.
+    Asserts that the formula will hold at some future time. The formula :math:`F\phi`
+    holds at time :math:`t` if :math:`\phi` holds at some time :math:`\geq t`.
 
-    With time constraint $F_{[a,b]}\phi$, the formula must hold at some time
+    With time constraint :math:`F_{[a,b]}\phi`, the formula must hold at some time
     within the interval [a,b].
 
     Attributes:
         arg: The sub-formula that must eventually hold.
         interval: Time constraint for when the formula must hold. Defaults to
-            unbounded $[0,\infty)$.
+            unbounded :math:`[0,\infty)`.
 
     Examples:
         Unbounded: F start  (system eventually starts)
         Bounded: F[0,100] goal  (goal reached within 100 steps)
         Nested: F G stable  (system eventually becomes stable forever)
 
-    Semantics:
-        F phi is equivalent to true U phi (true until phi becomes true).
+    Note:
+        Semantics: F phi is equivalent to true U phi (true until phi becomes true).
     """
 
     arg: Expr
@@ -371,29 +372,29 @@ class Eventually(Expr):
 @final
 @frozen
 class Until(Expr):
-    r"""Until operator: $\phi U \psi$ or $\phi U_{[a,b]} \psi$.
+    r"""Until operator: :math:`\phi U \psi` or :math:`\phi U_{[a,b]} \psi`.
 
     Binary temporal operator asserting that lhs holds continuously until rhs
-    becomes true. The formula $\phi U \psi$ holds at time $t$ if there exists
-    a time $\geq t$ where $\psi$ holds, and $\phi$ holds at all times from $t$
+    becomes true. The formula :math:`\phi U \psi` holds at time :math:`t` if there exists
+    a time :math:`\geq t` where :math:`\psi` holds, and :math:`\phi` holds at all times from :math:`t`
     until that moment.
 
-    With time constraint $\phi U_{[a,b]} \psi$, psi must become true within
+    With time constraint :math:`\phi U_{[a,b]} \psi`, psi must become true within
     the interval [a,b] while phi holds continuously until then.
 
     Attributes:
-        lhs: The left operand formula ($\phi$, must hold until rhs).
-        rhs: The right operand formula ($\psi$, becomes true).
+        lhs: The left operand formula (:math:`\phi`, must hold until rhs).
+        rhs: The right operand formula (:math:`\psi`, becomes true).
         interval: Time constraint for when rhs must hold. Defaults to
-            unbounded $[0,\infty)$.
+            unbounded :math:`[0,\infty)`.
 
     Examples:
         Unbounded: request U grant  (request holds until grant)
         Bounded: sending U[0,10] ack  (sending holds until ack within 10 steps)
         Nested: (a | b) U c  (a or b holds until c)
 
-    Semantics:
-        phi U psi asserts: at some future point, psi will be true, and phi
+    Note:
+        Semantics: phi U psi asserts: at some future point, psi will be true, and phi
         will hold up to that point.
     """
 
@@ -440,23 +441,23 @@ class Until(Expr):
 @final
 @frozen
 class Release(Expr):
-    r"""Release operator: $\phi R \psi$ or $\phi R_{[a,b]} \psi$.
+    r"""Release operator: :math:`\phi R \psi` or :math:`\phi R_{[a,b]} \psi`.
 
     Binary temporal operator asserting that rhs holds continuously unless
-    and until lhs becomes true. The formula $\phi R \psi$ holds at time $t$ if
-    either $\psi$ holds forever from $t$ onward, or $\phi$ becomes true at some
-    time $\geq t$ and $\psi$ holds continuously from $t$ until that moment.
+    and until lhs becomes true. The formula :math:`\phi R \psi` holds at time :math:`t` if
+    either :math:`\psi` holds forever from :math:`t` onward, or :math:`\phi` becomes true at some
+    time :math:`\geq t` and :math:`\psi` holds continuously from :math:`t` until that moment.
 
-    Release is the dual of Until: $\phi R \psi \equiv \neg(\neg\phi U \neg\psi)$.
+    Release is the dual of Until: :math:`\phi R \psi \equiv \neg(\neg\phi U \neg\psi)`.
 
-    With time constraint $\phi R_{[a,b]} \psi$, if phi becomes true, it must do
+    With time constraint :math:`\phi R_{[a,b]} \psi`, if phi becomes true, it must do
     so within the interval [a,b], while psi holds continuously until then.
 
     Attributes:
-        lhs: The left operand formula ($\phi$, releases rhs when true).
-        rhs: The right operand formula ($\psi$, must hold until released).
+        lhs: The left operand formula (:math:`\phi`, releases rhs when true).
+        rhs: The right operand formula (:math:`\psi`, must hold until released).
         interval: Time constraint for when lhs may release rhs. Defaults to
-            unbounded $[0,\infty)$.
+            unbounded :math:`[0,\infty)`.
 
     Examples:
         >>> from logic_asts.base import Variable
@@ -471,8 +472,8 @@ class Release(Expr):
         >>> print(Release(standby, ready, TimeInterval(0, 5)))
         (standby R[0, 5] ready)
 
-    Semantics:
-        phi R psi asserts: psi holds continuously unless and until phi becomes
+    Note:
+        Semantics: phi R psi asserts: psi holds continuously unless and until phi becomes
         true. Unlike Until, psi may hold forever if phi never becomes true.
     """
 
@@ -565,13 +566,13 @@ def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
     expression exactly once. In post-order, children are yielded before
     their parents, making this suitable for bottom-up processing.
 
-    Moreover, it ensures that each subexpression is a `LTLExpr`.
+    Moreover, it ensures that each subexpression is a ``LTLExpr``.
 
     Yields:
         Each node in the expression tree in post-order sequence.
 
     Raises:
-        TypeError: If the expression contains a subexpression that is not an `LTLExpr`
+        TypeError: If the expression contains a subexpression that is not a ``LTLExpr``
 
     """
     return iter(
@@ -608,5 +609,3 @@ __all__ = [
     "Sequence",
     "ltl_expr_iter",
 ]
-
-__docformat__ = "google"

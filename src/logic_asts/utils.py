@@ -85,11 +85,16 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False) -> logic.Expr:
                 # ~ (p R q) = ~p U ~q
                 return logic.ltl.Release(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
             return logic.ltl.Release(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
-        case logic.ltl.Sequence(lhs, rhs):
-            # ~(phi1 ; phi2) = ~phi1 | X(~phi2)
+        case logic.ltl.Sequence(args):
+            # ~(a ; b ; c) = ~a | X(~(b ; c)), recursing until a single negated Next remains
             if negate:
-                return logic.Or((to_nnf(lhs, negate=True), logic.ltl.Next(to_nnf(rhs, negate=True))))
-            return logic.ltl.Sequence(to_nnf(lhs), to_nnf(rhs))
+                head = to_nnf(args[0], negate=True)
+                if len(args) == 2:
+                    tail = logic.ltl.Next(to_nnf(args[1], negate=True))
+                else:
+                    tail = logic.ltl.Next(to_nnf(logic.ltl.Sequence(args[1:]), negate=True))
+                return logic.Or((head, tail))
+            return logic.ltl.Sequence(tuple(to_nnf(a) for a in args))
 
         case logic.strel.Everywhere(arg, interval, dist_fn):
             if negate:

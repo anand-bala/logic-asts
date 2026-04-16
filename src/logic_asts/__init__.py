@@ -1,7 +1,7 @@
-"""
-.. include:: ../../README.md
+"""Top-level package for logic-asts.
 
-# API Reference
+Provides grammars, parsers, and ASTs for logical formalisms including
+propositional logic, LTL, STREL, and STL-GO.
 """
 
 # mypy: allow_untyped_calls
@@ -42,10 +42,10 @@ _VarT = typing.TypeVar("_VarT", bound=Hashable)
 
 
 def is_propositional_logic(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[base.BaseExpr[_VarT]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `BaseExpr`
+    """Checks if the given object is an ``Expr`` and then checks if all the subexpressions are instances of ``BaseExpr``.
 
-    > [!WARNING]
-    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    Warning:
+        Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
         # Extract origin if it's a subscripted generic
@@ -59,10 +59,10 @@ def is_propositional_logic(obj: object, var_type: type[_VarT] | None = None) -> 
 
 
 def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[ltl.LTLExpr[_VarT]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `LTLExpr`
+    """Checks if the given object is an ``Expr`` and then checks if all the subexpressions are instances of ``LTLExpr``.
 
-    > [!WARNING]
-    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    Warning:
+        Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
         return all(
@@ -75,10 +75,10 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
 
 
 def is_strel_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[strel.STRELExpr[_VarT]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STRELExpr`
+    """Checks if the given object is an ``Expr`` and then checks if all the subexpressions are instances of ``STRELExpr``.
 
-    > [!WARNING]
-    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    Warning:
+        Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
         return all(
@@ -91,10 +91,10 @@ def is_strel_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Ty
 
 
 def is_stl_go_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.TypeGuard[stl_go.STLGOExpr[_VarT]]:
-    """Checks if the given object is an `Expr` and then checks if all the subexpressions are instances of `STLGOExpr`
+    """Checks if the given object is an ``Expr`` and then checks if all the subexpressions are instances of ``STLGOExpr``.
 
-    > [!WARNING]
-    > Using `None` as the `var_type` will automatically make the variable type check pass.
+    Warning:
+        Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
         return all(

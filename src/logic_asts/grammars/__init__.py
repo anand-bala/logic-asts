@@ -176,10 +176,10 @@ class StlGoTransform(Transformer[Token, Expr]):
     def weight_interval(self, start: float | None, end: float | None) -> WeightInterval:
         """Parse weight interval.
 
-        Handles:
-        - [None, None]: unbounded interval
-        - [n1, n2]: bounded interval
-        - None values are converted to actual infinities by WeightInterval
+        Note:
+            - [None, None]: unbounded interval
+            - [n1, n2]: bounded interval
+            - None values are converted to actual infinities by WeightInterval
         """
         return WeightInterval(start, end)
 
@@ -191,9 +191,9 @@ class StlGoTransform(Transformer[Token, Expr]):
     def edge_count_interval(self, start: int | None, end: int | None) -> EdgeCountInterval:
         """Parse edge count interval.
 
-        Handles:
-        - [None, None]: unbounded interval
-        - [n1, n2]: bounded interval
+        Note:
+            - [None, None]: unbounded interval
+            - [n1, n2]: bounded interval
         """
         return EdgeCountInterval(start, end)
 
@@ -240,37 +240,31 @@ class StlGoTransform(Transformer[Token, Expr]):
 @enum.unique
 class SupportedGrammars(enum.Enum):
     BASE = "base"
-    """Base Boolean propositional logic, without quantifiers or modal operators
+    """Base Boolean propositional logic, without quantifiers or modal operators.
 
-    See:
-        `logic_asts.base`
+    .. seealso:: :mod:`logic_asts.base`
     """
 
     LTL = "ltl"
-    """Linear Temporal Logic
+    """Linear Temporal Logic.
 
-    See:
-        `logic_asts.ltl`
+    .. seealso:: :mod:`logic_asts.ltl`
     """
 
     STREL = "strel"
-    """Spatio-Temporal Reach Escape Logic
+    """Spatio-Temporal Reach Escape Logic.
 
-    See:
-        `logic_asts.strel`
+    .. seealso:: :mod:`logic_asts.strel`
     """
 
     STL_GO = "stl_go"
-    """Spatio-Temporal Logic with Graph Operators
+    """Spatio-Temporal Logic with Graph Operators.
 
-    See:
-        `logic_asts.stl_go`
+    .. seealso:: :mod:`logic_asts.stl_go`
     """
 
     def get_transformer(self) -> Transformer[Token, Expr]:
-        """
-        @private
-        """
+        """Return the Lark transformer for this grammar."""
         syntax = str(self.value)
 
         transformer: Transformer[Token, Expr]

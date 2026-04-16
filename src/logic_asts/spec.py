@@ -25,9 +25,9 @@ class Expr(ABC):
 
         Derived operators (Implies, Equiv, Xor) are expanded to their
         definitions in terms of And, Or, and Not:
-        - $\phi \to \psi \equiv \neg\phi \vee \psi$
-        - $\phi \equiv \psi \equiv (\phi \vee \neg\psi) \wedge (\neg\phi \vee \psi)$
-        - $\phi \oplus \psi \equiv (\phi \wedge \neg\psi) \vee (\neg\phi \wedge \psi)$
+        - :math:`\phi \to \psi \equiv \neg\phi \vee \psi`
+        - :math:`\phi \equiv \psi \equiv (\phi \vee \neg\psi) \wedge (\neg\phi \vee \psi)`
+        - :math:`\phi \oplus \psi \equiv (\phi \wedge \neg\psi) \vee (\neg\phi \wedge \psi)`
 
         Returns:
             An equivalent expression using only And, Or, Not, Variable, and Literal.
@@ -117,15 +117,15 @@ class Expr(ABC):
         it appears multiple times in the expression.
 
         Args:
-            assume_nnf: If True, treats negated variables `Not(Variable(name))`
-                as atomic predicates (yields both Variable and Not nodes).
-                If False, only yields Variable nodes and traverses inside Not.
+            assume_nnf: If True, treats negated variables ``Not(Variable(name))``
+                as atomic predicates (yields both ``Variable`` and ``Not`` nodes).
+                If False, only yields ``Variable`` nodes and traverses inside ``Not``.
                 Defaults to False.
 
         Yields:
-            Variable[Var] | Not: When assume_nnf is True, yields both Variable
-                instances and Not(Variable) instances. When assume_nnf is False,
-                yields only Variable instances.
+            Variable[Var] | Not: When assume_nnf is True, yields both ``Variable``
+                instances and ``Not(Variable)`` instances. When assume_nnf is False,
+                yields only ``Variable`` instances.
 
         Examples:
             Basic usage (yields variables only):
