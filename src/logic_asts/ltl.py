@@ -504,45 +504,48 @@ class Release(Expr):
 @final
 @frozen
 class Sequence(Expr):
-    r"""Sequence operator: $\phi_1 ; \phi_2$.
+    r"""Sequence operator: ``phi_1 ; phi_2 ; ... ; phi_n``.
 
-    Asserts that lhs holds at the current time step and rhs holds at the next
-    time step. Equivalent to $\phi_1 \land X\phi_2$.
+    Asserts that each formula holds at successive time steps. The n-ary form
+    right-folds into nested ``phi_1 & X(phi_2 & X(... & X(phi_n)...))``.
 
     Attributes:
-        lhs: The formula that must hold at the current time step.
-        rhs: The formula that must hold at the next time step.
+        args: Two or more sub-formulas, evaluated at times 0, 1, ..., n-1.
 
     Examples:
         >>> from logic_asts.base import Variable
         >>> p = Variable("p")
         >>> q = Variable("q")
-        >>> print(Sequence(p, q))
-        (p ; q)
+        >>> r = Variable("r")
+        >>> print(Sequence((p, q, r)))
+        (p ; q ; r)
 
     Semantics:
-        phi1 ; phi2  is equivalent to  phi1 & X(phi2)
+        phi1 ; phi2 ; phi3  is equivalent to  phi1 & X(phi2 & X(phi3))
     """
 
-    lhs: Expr
-    rhs: Expr
+    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
-        return f"({self.lhs} ; {self.rhs})"
+        return "(" + " ; ".join(str(a) for a in self.args) + ")"
 
     @override
     def expand(self) -> Expr:
-        return self.lhs.expand() & Next(self.rhs.expand())
+        # Right-fold: a ; b ; c  ==>  a & Next(b & Next(c))
+        result = self.args[-1].expand()
+        for arg in reversed(self.args[:-1]):
+            result = arg.expand() & Next(result)
+        return result
 
     @override
     def children(self) -> Iterator[Expr]:
-        yield self.lhs
-        yield self.rhs
+        yield from self.args
 
     @override
     def horizon(self) -> int | float:
-        return max(self.lhs.horizon(), 1 + self.rhs.horizon())
+        # args[i] must hold at time i, so its contribution is args[i].horizon() + i
+        return max(arg.horizon() + i for i, arg in enumerate(self.args))
 
 
 Var = TypeVar("Var")

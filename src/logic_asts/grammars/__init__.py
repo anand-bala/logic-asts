@@ -76,8 +76,9 @@ class LtlTransform(Transformer[Token, Expr]):
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:
         return lhs & rhs
 
-    def sequence(self, lhs: Expr, rhs: Expr) -> Expr:
-        return Sequence(lhs, rhs)
+    @v_args(inline=False)
+    def sequence(self, args: list[Expr]) -> Expr:
+        return Sequence(tuple(args))
 
     def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         interval = interval or TimeInterval()
