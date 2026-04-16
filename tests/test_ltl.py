@@ -485,6 +485,7 @@ class TestSequenceOperator:
     def test_sequence_negated_nnf(self) -> None:
         """Test NNF of negated Sequence: ~(p ; q) = ~p | X(~q)."""
         from logic_asts.base import Or
+
         p = Variable("p")
         q = Variable("q")
         nnf = (~ltl.Sequence((p, q))).to_nnf()
@@ -505,6 +506,7 @@ class TestSequenceOperator:
     def test_parse_sequence_lower_precedence_than_implies(self) -> None:
         """Test that ; binds looser than ->, so p -> q ; r -> s = (p->q);(r->s)."""
         from logic_asts.base import Implies
+
         expr = logic_asts.parse_expr("p -> q ; r -> s", syntax="ltl")
         assert isinstance(expr, ltl.Sequence)
         assert len(expr.args) == 2

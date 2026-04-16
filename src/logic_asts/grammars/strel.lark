@@ -1,6 +1,6 @@
 %import .ltl (expr, product, unary, ex_binary)
 
-?start: expr
+start: expr
 
 // Add temporal operators with higher precedence than & and |
 %override ?product: ex_binary

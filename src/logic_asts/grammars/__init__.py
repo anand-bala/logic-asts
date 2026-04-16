@@ -66,6 +66,9 @@ class BaseTransform(Transformer[Token, Expr]):
     def FALSE(self, _value: Token | str) -> Literal:  # noqa: N802
         return Literal(False)
 
+    def start(self, expr: Expr) -> Expr:
+        return expr
+
     def IDENTIFIER(self, value: Token | str) -> Variable[str]:  # noqa: N802
         return Variable(str(value))
 
@@ -73,6 +76,9 @@ class BaseTransform(Transformer[Token, Expr]):
 @typing.final
 @v_args(inline=True)
 class LtlTransform(Transformer[Token, Expr]):
+    def start(self, expr: Expr) -> Expr:
+        return expr
+
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:
         return lhs & rhs
 
@@ -105,6 +111,9 @@ class LtlTransform(Transformer[Token, Expr]):
 @typing.final
 @v_args(inline=True)
 class StrelTransform(Transformer[Token, Expr]):
+    def start(self, expr: Expr) -> Expr:
+        return expr
+
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:
         return lhs & rhs
 
@@ -133,6 +142,10 @@ class StrelTransform(Transformer[Token, Expr]):
 @typing.final
 class StlGoTransform(Transformer[Token, Expr]):
     """Transformer for STL-GO grammar, extending LTL transformations."""
+
+    @v_args(inline=True)
+    def start(self, expr: Expr) -> Expr:
+        return expr
 
     @v_args(inline=True)
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:

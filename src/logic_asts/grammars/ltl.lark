@@ -1,6 +1,6 @@
 %import .base (expr, impl_expr, product, unary)
 
-?start: expr
+start: expr
 
 // Sequence has lower precedence than implies/equiv (below expr level)
 // Collects all ;-separated items into a single sequence node

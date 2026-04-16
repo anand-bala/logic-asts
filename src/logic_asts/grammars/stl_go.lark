@@ -1,6 +1,6 @@
 %import .ltl (expr, product, unary)
 
-?start: expr
+start: expr
 
 // Extend unary to include graph operators
 // Syntax: in^[W1,W2]{quantifier}_{G}[E1,E2] formula

@@ -514,4 +514,3 @@ __all__ = [
     "Implies",
     "bool_expr_iter",
 ]
-
