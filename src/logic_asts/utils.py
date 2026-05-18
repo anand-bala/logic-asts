@@ -34,82 +34,151 @@ def check_weight_start(instance: Any, attribute: attrs.Attribute[None], value: f
         raise ValueError(f"{attribute.name} [a,b] cannot have a > b")
 
 
-def to_nnf(expr: logic.Expr, *, negate: bool = False) -> logic.Expr:
-    """Use the NNF/negation identities for all supported logics"""
+def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -> logic.Expr:
+    """Use the Spot NNF/negation identities for all supported logics.
+
+    Applies Spot's negative normal form rules, which properly handle strong/weak
+    temporal operators. For LTL, this includes:
+
+    - ~X f = X[!] ~f (strong-X dual of weak-X)
+    - ~X[!] f = X ~f
+    - ~(f U g) = (~f) R (~g)
+    - ~(f W g) = (~f) M (~g)
+    - ~(f R g) = (~f) U (~g)
+    - ~(f M g) = (~f) W (~g)
+    - ~G f = F ~f
+    - ~F f = G ~f
+    """
+    # Expand early unless we're handling Sequence (which has special negation semantics)
+    if not _expanded and not isinstance(expr, logic.ltl.Sequence):
+        expr = expr.expand()
+        _expanded = True
 
     match expr:
         case logic.Literal() | logic.Variable():
             return expr if not negate else ~expr
         case logic.Not(arg):
-            return to_nnf(arg, negate=not negate)
+            return to_nnf(arg, negate=not negate, _expanded=_expanded)
         case logic.And(args):
-            args = tuple(to_nnf(arg, negate=negate) for arg in args)
+            args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
             if negate:
                 return logic.Or(args)
             else:
                 return logic.And(args)
         case logic.Or(args):
-            args = tuple(to_nnf(arg, negate=negate) for arg in args)
+            args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
             if negate:
                 return logic.And(args)
             else:
                 return logic.Or(args)
         case logic.Implies(lhs, rhs):
-            return to_nnf(~lhs | rhs, negate=negate)
+            return to_nnf(~lhs | rhs, negate=negate, _expanded=_expanded)
         case logic.Equiv(x, y):
-            return to_nnf((x | ~y) & (~x | y), negate=negate)
+            return to_nnf((x | ~y) & (~x | y), negate=negate, _expanded=_expanded)
         case logic.Xor(x, y):
-            return to_nnf((x & ~y) | (~x & y), negate=negate)
+            return to_nnf((x & ~y) | (~x & y), negate=negate, _expanded=_expanded)
         case logic.ltl.Next(arg):
-            return logic.ltl.Next(to_nnf(arg, negate=negate))
+            if negate:
+                # ~X f = X[!] ~f (strong-X dual of weak-X)
+                return logic.ltl.StrongNext(to_nnf(arg, negate=True, _expanded=_expanded))
+            # X f = X f
+            return logic.ltl.Next(to_nnf(arg, _expanded=_expanded))
+        case logic.ltl.StrongNext(arg):
+            if negate:
+                # ~X[!] f = X ~f (weak-X dual of strong-X)
+                return logic.ltl.Next(to_nnf(arg, negate=True, _expanded=_expanded))
+            # X[!] f = X[!] f
+            return logic.ltl.StrongNext(to_nnf(arg, _expanded=_expanded))
         case logic.ltl.Always(arg, interval):
             if negate:
                 # ~ G x = F ~x
-                return logic.ltl.Eventually(to_nnf(arg, negate=negate), interval)
+                return logic.ltl.Eventually(to_nnf(arg, negate=True, _expanded=_expanded), interval)
             # G x = G x
-            return logic.ltl.Always(to_nnf(arg, negate=negate), interval)
+            return logic.ltl.Always(to_nnf(arg, _expanded=_expanded), interval)
         case logic.ltl.Eventually(arg, interval):
             if negate:
                 # ~ F x = G ~x
-                return logic.ltl.Always(to_nnf(arg, negate=negate), interval)
+                return logic.ltl.Always(to_nnf(arg, negate=True, _expanded=_expanded), interval)
             # F x = F x
-            return logic.ltl.Eventually(to_nnf(arg, negate=negate), interval)
+            return logic.ltl.Eventually(to_nnf(arg, _expanded=_expanded), interval)
         case logic.ltl.Until(lhs, rhs, interval):
             if negate:
-                # ~ (p U q) = ~p R ~q
-                return logic.ltl.Release(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
-            return logic.ltl.Until(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
-
+                # ~ (f U g) = (~f) R (~g)
+                return logic.ltl.Release(
+                    to_nnf(lhs, negate=True, _expanded=_expanded),
+                    to_nnf(rhs, negate=True, _expanded=_expanded),
+                    interval,
+                )
+            return logic.ltl.Until(
+                to_nnf(lhs, _expanded=_expanded),
+                to_nnf(rhs, _expanded=_expanded),
+                interval,
+            )
+        case logic.ltl.WeakUntil(lhs, rhs, interval):
+            if negate:
+                # ~ (f W g) = (~f) M (~g)
+                return logic.ltl.StrongRelease(
+                    to_nnf(lhs, negate=True, _expanded=_expanded),
+                    to_nnf(rhs, negate=True, _expanded=_expanded),
+                    interval,
+                )
+            return logic.ltl.WeakUntil(
+                to_nnf(lhs, _expanded=_expanded),
+                to_nnf(rhs, _expanded=_expanded),
+                interval,
+            )
         case logic.ltl.Release(lhs, rhs, interval):
             if negate:
-                # ~ (p R q) = ~p U ~q
-                return logic.ltl.Release(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
-            return logic.ltl.Release(to_nnf(lhs, negate=negate), to_nnf(rhs, negate=negate), interval)
+                # ~ (f R g) = (~f) U (~g)  [FIX: was wrongly returning Release]
+                return logic.ltl.Until(
+                    to_nnf(lhs, negate=True, _expanded=_expanded),
+                    to_nnf(rhs, negate=True, _expanded=_expanded),
+                    interval,
+                )
+            return logic.ltl.Release(
+                to_nnf(lhs, _expanded=_expanded),
+                to_nnf(rhs, _expanded=_expanded),
+                interval,
+            )
+        case logic.ltl.StrongRelease(lhs, rhs, interval):
+            if negate:
+                # ~ (f M g) = (~f) W (~g)
+                return logic.ltl.WeakUntil(
+                    to_nnf(lhs, negate=True, _expanded=_expanded),
+                    to_nnf(rhs, negate=True, _expanded=_expanded),
+                    interval,
+                )
+            return logic.ltl.StrongRelease(
+                to_nnf(lhs, _expanded=_expanded),
+                to_nnf(rhs, _expanded=_expanded),
+                interval,
+            )
         case logic.ltl.Sequence(args):
             # ~(a ; b ; c) = ~a | X(~(b ; c)), recursing until a single negated Next remains
             if negate:
-                head = to_nnf(args[0], negate=True)
+                head = to_nnf(args[0], negate=True, _expanded=True)
                 if len(args) == 2:
-                    tail = logic.ltl.Next(to_nnf(args[1], negate=True))
+                    tail = logic.ltl.Next(to_nnf(args[1], negate=True, _expanded=True))
                 else:
-                    tail = logic.ltl.Next(to_nnf(logic.ltl.Sequence(args[1:]), negate=True))
+                    tail = logic.ltl.Next(to_nnf(logic.ltl.Sequence(args[1:]), negate=True, _expanded=True))
                 return logic.Or((head, tail))
-            return logic.ltl.Sequence(tuple(to_nnf(a) for a in args))
+            # Not negated: preserve Sequence structure with recursed args
+            return logic.ltl.Sequence(tuple(to_nnf(a, _expanded=True) for a in args))
 
         case logic.strel.Everywhere(arg, interval, dist_fn):
             if negate:
-                # somewhere is dual to everywhere
-                return logic.strel.Somewhere(to_nnf(arg, negate=negate), interval, dist_fn)
-            return logic.strel.Everywhere(to_nnf(arg, negate=negate), interval, dist_fn)
+                # ~(E A) = E S (negate dual: Everywhere to Somewhere)
+                return logic.strel.Somewhere(to_nnf(arg, negate=True, _expanded=_expanded), interval, dist_fn)
+            return logic.strel.Everywhere(to_nnf(arg, _expanded=_expanded), interval, dist_fn)
         case logic.strel.Somewhere(arg, interval, dist_fn):
             if negate:
-                # somewhere is dual to somewhere
-                return logic.strel.Somewhere(to_nnf(arg, negate=negate), interval, dist_fn)
-            return logic.strel.Somewhere(to_nnf(arg, negate=negate), interval, dist_fn)
+                # ~(E S) = E A (negate dual: Somewhere to Everywhere)  [FIX: was wrongly returning Somewhere]
+                return logic.strel.Everywhere(to_nnf(arg, negate=True, _expanded=_expanded), interval, dist_fn)
+            return logic.strel.Somewhere(to_nnf(arg, _expanded=_expanded), interval, dist_fn)
         case logic.strel.Escape():
             # TODO: there isn't a real dual to Escape
             # prevent negation from passing through
-            expr = attrs.evolve(expr, arg=to_nnf(expr.arg))
+            expr = attrs.evolve(expr, arg=to_nnf(expr.arg, _expanded=_expanded))
             if negate:
                 return logic.Not(expr)
             else:
@@ -117,14 +186,14 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False) -> logic.Expr:
         case logic.strel.Reach():
             # TODO: there isn't a real dual to Reach
             # prevent negation from passing through
-            expr = attrs.evolve(expr, lhs=to_nnf(expr.lhs), rhs=to_nnf(expr.rhs))
+            expr = attrs.evolve(expr, lhs=to_nnf(expr.lhs, _expanded=_expanded), rhs=to_nnf(expr.rhs, _expanded=_expanded))
             if negate:
                 return logic.Not(expr)
             else:
                 return expr
         case logic.stl_go.GraphIncoming() | logic.stl_go.GraphOutgoing():
             # TODO: unsure what the dual to these is
-            expr = attrs.evolve(expr, arg=to_nnf(expr.arg))
+            expr = attrs.evolve(expr, arg=to_nnf(expr.arg, _expanded=_expanded))
             if negate:
                 return logic.Not(expr)
             else:

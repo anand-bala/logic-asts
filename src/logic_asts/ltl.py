@@ -1,26 +1,26 @@
 r"""Abstract syntax trees for linear temporal logic (LTL).
 
 This module extends propositional logic with temporal operators for specifying
-LTL properties:
+LTL properties. Supports both weak and strong variants via Spot syntax:
 
-- X (Next): :math:`X\phi` asserts that :math:`\phi` holds at the next time step
-- F (Eventually): :math:`F\phi` asserts that :math:`\phi` holds at some future time
-- G (Always): :math:`G\phi` asserts that :math:`\phi` holds at all future times
-- U (Until): :math:`\phi U \psi` asserts :math:`\phi` holds until :math:`\psi` becomes true
-- R (Release): :math:`\phi R \psi` asserts :math:`\psi` holds unless/until :math:`\phi` becomes true
+Unary operators:
+    - X (Next): weak next, vacuous on finite traces
+    - X[!] (StrongNext): strong next, false on finite traces
+    - F (Eventually): existential temporal operator
+    - G (Always): universal temporal operator
 
-Time Constraints:
-    Operators can be constrained with time intervals [start, end]:
-    - :math:`F_{[0,10]}\phi`: phi holds within the next 10 time steps
-    - :math:`G_{[5,\infty)}\phi`: phi always holds from time 5 onward
+Binary operators:
+    - U (Until): strong until, requires right to eventually hold
+    - W (WeakUntil): weak until, allows left to hold forever
+    - R (Release): weak release, allows right to hold forever
+    - M (StrongRelease): strong release, requires left to eventually hold
 
 Key Classes:
     - TimeInterval: Represents time bounds [start, end]
-    - Next: Single and multi-step next operator
-    - Eventually: Existential temporal operator
-    - Always: Universal temporal operator
-    - Until: Binary temporal operator
-    - Release: Binary temporal operator (dual of Until)
+    - Next, StrongNext: Next-step operators (weak and strong)
+    - Always, Eventually: Unary temporal operators
+    - Until, WeakUntil: Until operators (strong and weak)
+    - Release, StrongRelease: Release operators (weak and strong)
 
 Examples:
     Request-response property: `request -> F response`
@@ -237,6 +237,72 @@ class Next(Expr):
 
 @final
 @frozen
+class StrongNext(Expr):
+    r"""Strong Next operator: :math:`X[!]\phi` or :math:`X[n!]\phi`.
+
+    Asserts that the formula holds in the next time step(s) on finite traces.
+    Unlike the weak Next, :math:`X[!]\phi` is false at the last position of a
+    finite trace.
+
+    For :math:`X[n!]\phi`, the formula must hold at time :math:`t+n`, which is
+    equivalent to nesting n StrongNext operators.
+
+    Attributes:
+        arg: The sub-formula to evaluate in the next state(s).
+        steps: Number of steps to look ahead. None or 1 means single step;
+            any positive integer specifies multiple steps. Defaults to None
+            (equivalent to 1).
+
+    Examples:
+        - Single step: `X[!] p`  (p holds next on finite traces)
+        - Multiple steps: `X[3!] p`  (p holds in 5 time steps on finite traces)
+
+    Note:
+        On infinite traces, StrongNext is equivalent to Next.
+        The horizon is ``1 + horizon(arg)`` for single step.
+        For :math:`X[n!]`: ``n + horizon(arg)``.
+    """
+
+    arg: Expr
+    steps: int | None = attrs.field(default=None)
+
+    @override
+    def __str__(self) -> str:
+        match self.steps:
+            case None | 1:
+                step_str = "[!]"
+            case t:
+                step_str = f"[{t}!]"
+        return f"(X{step_str} {self.arg})"
+
+    @override
+    def expand(self) -> Expr:
+        arg = self.arg.expand()
+        if self.steps is None:
+            return StrongNext(arg)
+        else:
+            assert isinstance(self.steps, int)
+            expr = arg
+            for _ in range(self.steps):
+                expr = StrongNext(expr)
+            return expr
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def horizon(self) -> int | float:
+        arg_hrz = self.arg.horizon()
+        assert isinstance(arg_hrz, int) or math.isinf(arg_hrz), (
+            "`StrongNext` cannot be used for continuous-time specifications, horizon cannot be computed"
+        )
+        steps = self.steps if self.steps is not None else 1
+        return steps + arg_hrz
+
+
+@final
+@frozen
 class Always(Expr):
     r"""Always (globally) operator: :math:`G\phi` or :math:`G_{[a,b]}\phi`.
 
@@ -250,6 +316,8 @@ class Always(Expr):
         arg: The sub-formula that must always hold.
         interval: Time constraint for when the formula must hold. Defaults to
             unbounded :math:`[0,\infty)`.
+        strong: If True, expand bounded G using StrongNext instead of Next.
+            Defaults to False (weak/standard next).
 
     Examples:
         - Unbounded: G ~error  (error never occurs)
@@ -262,6 +330,7 @@ class Always(Expr):
 
     arg: Expr
     interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
+    strong: bool = attrs.field(default=False)
 
     @override
     def __str__(self) -> str:
@@ -269,27 +338,30 @@ class Always(Expr):
 
     @override
     def expand(self) -> Expr:
+        # Choose Next or StrongNext based on self.strong
+        next_op = StrongNext if self.strong else Next
+
         match self.interval:
             case TimeInterval(None, None) | TimeInterval(0, None):
                 # Unbounded G
-                return Always(self.arg.expand())
+                return Always(self.arg.expand(), strong=self.strong)
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # G[0, t2]
                 arg = self.arg.expand()
                 expr = arg
                 for _ in range(t2):
-                    expr = expr & Next(arg)
+                    expr = expr & next_op(arg)
                 return expr
             case TimeInterval(int(t1), None):
                 # G[t1, inf]
                 assert t1 > 0
-                return Next(Always(self.arg), t1).expand()
+                return next_op(Always(self.arg, strong=self.strong), t1).expand()
             case TimeInterval(int(t1), int(t2)):
                 # G[t1, t2]
                 assert t1 > 0
                 # G[t1, t2] = X[t1] G[0,t2-t1] arg
                 # Nested nexts until t1
-                return Next(Always(self.arg, TimeInterval(0, t2 - t1)), t1).expand()
+                return next_op(Always(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand()
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
@@ -317,6 +389,8 @@ class Eventually(Expr):
         arg: The sub-formula that must eventually hold.
         interval: Time constraint for when the formula must hold. Defaults to
             unbounded :math:`[0,\infty)`.
+        strong: If True, expand bounded F using StrongNext instead of Next.
+            Defaults to False (weak/standard next).
 
     Examples:
         Unbounded: F start  (system eventually starts)
@@ -329,6 +403,7 @@ class Eventually(Expr):
 
     arg: Expr
     interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
+    strong: bool = attrs.field(default=False)
 
     @override
     def __str__(self) -> str:
@@ -336,27 +411,30 @@ class Eventually(Expr):
 
     @override
     def expand(self) -> Expr:
+        # Choose Next or StrongNext based on self.strong
+        next_op = StrongNext if self.strong else Next
+
         match self.interval:
             case TimeInterval(None, None) | TimeInterval(0, None):
                 # Unbounded F
-                return Eventually(self.arg.expand())
+                return Eventually(self.arg.expand(), strong=self.strong)
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # F[0, t2]
                 arg = self.arg.expand()
                 expr = arg
                 for _ in range(t2):
-                    expr = expr & Next(arg)
+                    expr = expr & next_op(arg)
                 return expr
             case TimeInterval(int(t1), None):
                 # F[t1, inf]
                 assert t1 > 0
-                return Next(Eventually(self.arg), t1).expand()
+                return next_op(Eventually(self.arg, strong=self.strong), t1).expand()
             case TimeInterval(int(t1), int(t2)):
                 # F[t1, t2]
                 assert t1 > 0
                 # F[t1, t2] = X[t1] F[0,t2-t1] arg
                 # Nested nexts until t1
-                return Next(Eventually(self.arg, TimeInterval(0, t2 - t1)), t1).expand()
+                return next_op(Eventually(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand()
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
@@ -440,6 +518,75 @@ class Until(Expr):
 
 @final
 @frozen
+class WeakUntil(Expr):
+    r"""Weak Until operator: :math:`\phi W \psi` or :math:`\phi W_{[a,b]} \psi`.
+
+    Binary temporal operator asserting that lhs holds continuously until rhs
+    becomes true, or lhs holds forever. The formula :math:`\phi W \psi` holds
+    at time :math:`t` if either :math:`\phi` holds at all times from :math:`t`
+    onward, or there exists a time :math:`\geq t` where :math:`\psi` holds and
+    :math:`\phi` holds at all times from :math:`t` until that moment.
+
+    With time constraint :math:`\phi W_{[a,b]} \psi`, psi must become true within
+    the interval [a,b] while phi holds continuously until then, or phi holds
+    throughout [a,b] and beyond.
+
+    Attributes:
+        lhs: The left operand formula (:math:`\phi`, must hold until rhs or forever).
+        rhs: The right operand formula (:math:`\psi`, becomes true).
+        interval: Time constraint for when rhs must hold. Defaults to
+            unbounded :math:`[0,\infty)`.
+
+    Examples:
+        Unbounded: request W grant  (request holds until grant or forever)
+        Bounded: sending W[0,10] ack  (sending holds until ack within 10 steps or forever)
+
+    Note:
+        Semantics: phi W psi is equivalent to (phi U psi) | G phi.
+    """
+
+    lhs: Expr
+    rhs: Expr
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
+
+    @override
+    def __str__(self) -> str:
+        return f"({self.lhs} W{self.interval or ''} {self.rhs})"
+
+    @override
+    def expand(self) -> Expr:
+        new_lhs = self.lhs.expand()
+        new_rhs = self.rhs.expand()
+        match self.interval:
+            case TimeInterval(None | 0, None):
+                # Just make an unbounded one here
+                return WeakUntil(new_lhs, new_rhs)
+            case TimeInterval(t1, None):  # Unbounded end
+                return Always(
+                    arg=WeakUntil(lhs=new_lhs, rhs=new_rhs),
+                    interval=TimeInterval(0, t1),
+                ).expand()
+            case TimeInterval(t1, _):
+                z1 = Eventually(interval=self.interval, arg=new_lhs).expand()
+                until_interval = TimeInterval(t1, None)
+                z2 = WeakUntil(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
+                return z1 & z2
+            case _:
+                raise RuntimeError(f"Unexpected time interval {self.interval}")
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        end = self.interval.end or math.inf
+        return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
+
+
+@final
+@frozen
 class Release(Expr):
     r"""Release operator: :math:`\phi R \psi` or :math:`\phi R_{[a,b]} \psi`.
 
@@ -504,6 +651,72 @@ class Release(Expr):
 
 @final
 @frozen
+class StrongRelease(Expr):
+    r"""Strong Release operator: :math:`\phi M \psi` or :math:`\phi M_{[a,b]} \psi`.
+
+    Binary temporal operator asserting that rhs holds continuously until lhs
+    becomes true, and lhs must eventually become true. The formula :math:`\phi M \psi`
+    holds at time :math:`t` if there exists a time :math:`\geq t` where :math:`\phi`
+    becomes true, and :math:`\psi` holds at all times from :math:`t` up to and
+    including that moment.
+
+    Strong Release is the dual of Weak Until: :math:`\phi M \psi \equiv \neg(\neg\phi W \neg\psi)`.
+
+    With time constraint :math:`\phi M_{[a,b]} \psi`, phi must become true within
+    the interval [a,b], while psi holds continuously until then.
+
+    Attributes:
+        lhs: The left operand formula (:math:`\phi`, releases rhs when true).
+        rhs: The right operand formula (:math:`\psi`, must hold until released).
+        interval: Time constraint for when lhs may release rhs. Defaults to
+            unbounded :math:`[0,\infty)`.
+
+    Examples:
+        >>> from logic_asts.base import Variable
+        >>> safe = Variable("safe")
+        >>> error = Variable("error")
+        >>> print(StrongRelease(safe, ~error))
+        (safe M !error)
+
+    Note:
+        Semantics: phi M psi asserts: psi holds continuously until phi becomes
+        true, and phi must eventually become true. Unlike Release, psi cannot
+        hold forever without phi becoming true.
+    """
+
+    lhs: Expr
+    rhs: Expr
+    interval: TimeInterval = attrs.field(factory=lambda: TimeInterval(None, None))
+
+    @override
+    def __str__(self) -> str:
+        return f"({self.lhs} M{self.interval or ''} {self.rhs})"
+
+    @override
+    def expand(self) -> Expr:
+        new_lhs = self.lhs.expand()
+        new_rhs = self.rhs.expand()
+        match self.interval:
+            case TimeInterval(None | 0, None):
+                # Unbounded: return StrongRelease with expanded operands
+                return StrongRelease(new_lhs, new_rhs)
+            case _:
+                # Bounded: use dual form Not(WeakUntil(~lhs, ~rhs, interval))
+                return Not(WeakUntil(~new_lhs, ~new_rhs, self.interval))
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.lhs
+        yield self.rhs
+
+    @override
+    def horizon(self) -> int | float:
+        end = self.interval.end or math.inf
+        return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
+
+
+@final
+@frozen
 class Sequence(Expr):
     r"""Sequence operator: ``phi_1 ; phi_2 ; ... ; phi_n``.
 
@@ -550,7 +763,9 @@ class Sequence(Expr):
 
 
 Var = TypeVar("Var")
-LTLExpr: TypeAlias = BaseExpr[Var] | Next | Always | Eventually | Until | Release | Sequence
+LTLExpr: TypeAlias = (
+    BaseExpr[Var] | Next | StrongNext | Always | Eventually | Until | WeakUntil | Release | StrongRelease | Sequence
+)
 """LTL expression types.
 
 Use :func:`logic_asts.ltl_expr_iter` to iterate over the subtree of an
@@ -579,10 +794,13 @@ def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
         ExprVisitor[LTLExpr[Var]](
             (
                 Next,
+                StrongNext,
                 Always,
                 Eventually,
                 Until,
+                WeakUntil,
                 Release,
+                StrongRelease,
                 Sequence,
                 Implies,
                 Equiv,
@@ -602,10 +820,13 @@ __all__ = [
     "LTLExpr",
     "TimeInterval",
     "Next",
+    "StrongNext",
     "Always",
     "Eventually",
     "Until",
+    "WeakUntil",
     "Release",
+    "StrongRelease",
     "Sequence",
     "ltl_expr_iter",
 ]

@@ -67,7 +67,18 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
     if isinstance(obj, Expr):
         return all(
             is_propositional_logic(expr, var_type)
-            or isinstance(expr, ltl.Next | ltl.Always | ltl.Eventually | ltl.Until | ltl.Release | ltl.Sequence)
+            or isinstance(
+                expr,
+                ltl.Next
+                | ltl.StrongNext
+                | ltl.Always
+                | ltl.Eventually
+                | ltl.Until
+                | ltl.WeakUntil
+                | ltl.Release
+                | ltl.StrongRelease
+                | ltl.Sequence,
+            )
             for expr in obj.iter_subtree()
         )
 
@@ -143,6 +154,11 @@ def parse_expr(
     *,
     syntax: SupportedGrammars | SupportedGrammarsStr = SupportedGrammars.BASE,
 ) -> Expr:
+    """Parse a logical expression string into an AST.
+
+    For LTL expressions, uses Spot syntax with support for weak/strong
+    operators (X, X[!], W, M) and bounded temporal operators.
+    """
     syntax = SupportedGrammars(syntax)
 
     grammar = Lark.open_from_package(

@@ -10,7 +10,18 @@ from lark import Token, Transformer, v_args
 from lark.visitors import merge_transformers
 
 from logic_asts.base import Equiv, Implies, Literal, Variable, Xor
-from logic_asts.ltl import Always, Eventually, Next, Sequence, TimeInterval, Until
+from logic_asts.ltl import (
+    Always,
+    Eventually,
+    Next,
+    Release,
+    Sequence,
+    StrongNext,
+    StrongRelease,
+    TimeInterval,
+    Until,
+    WeakUntil,
+)
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
@@ -90,19 +101,85 @@ class LtlTransform(Transformer[Token, Expr]):
         interval = interval or TimeInterval()
         return Until(lhs, rhs, interval)
 
-    def always(self, interval: TimeInterval | None, arg: Expr) -> Expr:
+    def weak_until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         interval = interval or TimeInterval()
-        return Always(arg, interval)
+        return WeakUntil(lhs, rhs, interval)
 
-    def eventually(self, interval: TimeInterval | None, arg: Expr) -> Expr:
+    def release(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         interval = interval or TimeInterval()
-        return Eventually(arg, interval)
+        return Release(lhs, rhs, interval)
 
-    def next(self, steps: int | None, arg: Expr) -> Expr:
-        return Next(arg, steps)
+    def strong_release(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+        interval = interval or TimeInterval()
+        return StrongRelease(lhs, rhs, interval)
+
+    def always(self, interval: TimeInterval | tuple[TimeInterval, bool] | None, arg: Expr) -> Expr:
+        # interval can be:
+        # - None (no interval)
+        # - TimeInterval (regular time interval)
+        # - tuple (TimeInterval, strong) from time_interval_strong
+        strong = False
+        if isinstance(interval, tuple):
+            interval, strong = interval
+        elif interval is None:
+            interval = TimeInterval()
+        return Always(arg, interval, strong=strong)
+
+    def eventually(self, interval: TimeInterval | tuple[TimeInterval, bool] | None, arg: Expr) -> Expr:
+        # interval can be:
+        # - None (no interval)
+        # - TimeInterval (regular time interval)
+        # - tuple (TimeInterval, strong) from time_interval_strong
+        strong = False
+        if isinstance(interval, tuple):
+            interval, strong = interval
+        elif interval is None:
+            interval = TimeInterval()
+        return Eventually(arg, interval, strong=strong)
+
+    def next(self, modifier: dict[str, typing.Any] | None, arg: Expr) -> Expr:
+        # modifier is the result from next_modifier rule, can be:
+        # - dict with 'strong'=True (from strong_next)
+        # - dict with 'steps' and optionally 'strong' (from weak_step, strong_step)
+        # - None (from weak_next, when empty)
+        if modifier is None:
+            # weak_next: X p
+            return Next(arg, None)
+        elif isinstance(modifier, dict):
+            if modifier.get("strong"):
+                # strong_next: X[!] p
+                steps = modifier.get("steps")
+                return StrongNext(arg, steps)
+            else:
+                # weak_step: X[n] p
+                steps = modifier.get("steps")
+                return Next(arg, steps)
+        else:
+            # Fallback: treat as weak next
+            return Next(arg, None)
+
+    def strong_next(self) -> dict[str, typing.Any]:
+        # X[!] -> strong next, no steps
+        return {"strong": True, "steps": None}
+
+    def weak_step(self, steps: int) -> dict[str, typing.Any]:
+        # X[n] -> weak next with steps
+        return {"strong": False, "steps": steps}
+
+    def strong_step(self, steps: int) -> dict[str, typing.Any]:
+        # X[n!] -> strong next with steps
+        return {"strong": True, "steps": steps}
+
+    def weak_next(self) -> None:
+        # X -> weak next with no steps
+        return None
 
     def time_interval(self, start: int | None, end: int | None) -> TimeInterval:
         return TimeInterval(start, end)
+
+    def time_interval_strong(self, start: int | None, end: int | None) -> tuple[TimeInterval, bool]:
+        # Return (TimeInterval, strong=True)
+        return (TimeInterval(start, end), True)
 
     def INT(self, value: Token | int) -> int:  # noqa: N802
         return int(value)

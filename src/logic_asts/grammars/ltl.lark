@@ -11,14 +11,28 @@ start: expr
 %override ?product: ex_binary
                  | product ("&"|"&&")  ex_binary   -> mul
 
-// Extended binary operations 
+// Extended binary operations
+// Support U (until), W (weak until), R (release), M (strong release)
 ?ex_binary: unary
          | ex_binary ("until" | "U") [time_interval] unary -> until
+         | ex_binary ("W") [time_interval] unary -> weak_until
+         | ex_binary ("R") [time_interval] unary -> release
+         | ex_binary ("M") [time_interval] unary -> strong_release
 
-%extend ?unary: ("globally" | "G") [time_interval] unary    -> always
-                 | ("eventually" | "F") [time_interval] unary  -> eventually
-                 | ("next" | "X") [ "[" INT "]" ] unary        -> next
+%extend ?unary: ("globally" | "G") [strong_time_interval] unary    -> always
+                 | ("eventually" | "F") [strong_time_interval] unary  -> eventually
+                 | ("next" | "X") next_modifier unary        -> next
 
+// Next modifier: empty (weak), [n] (weak n-steps), [!] (strong), [n!] (strong n-steps)
+?next_modifier: "[" INT "!" "]"  -> strong_step
+              | "[" "!" "]"       -> strong_next
+              | "[" INT "]"       -> weak_step
+              |                     -> weak_next
+
+// Time interval with optional strong marker: [a,b] or [a,b!]
+?strong_time_interval: "[" [INT] "," [INT] "!" "]"   -> time_interval_strong
+                     | "[" [INT] ":" [INT] "!" "]"   -> time_interval_strong
+                     | time_interval
 
 time_interval: "[" [INT] "," [INT] "]"
 
