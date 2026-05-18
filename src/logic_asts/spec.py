@@ -174,7 +174,7 @@ class Expr(ABC):
             if visited.issuperset(need_to_visit_children):
                 # subexpr is a leaf (the set is empty) or it's children have been
                 # yielded get rid of it from the stack
-                stack.pop()
+                _ = stack.pop()
                 # Add subexpr to visited
                 visited.add(subexpr)
             else:
@@ -301,6 +301,9 @@ class ExprVisitor(Generic[_T]):
         TypeError: If the expression contains a subexpression that is not of the specified type
     """
 
+    _types: tuple[type[Expr], ...]
+    _expr: _T
+
     def __init__(self, expr_type: _SomeExprType[_T], expr: _T) -> None:
         self._types = _validate_and_normalize(expr_type)
         self._expr = expr
@@ -323,7 +326,7 @@ class ExprVisitor(Generic[_T]):
             if not unvisited_children:
                 # subexpr is a leaf (the set is empty) or it's children have been
                 # yielded get rid of it from the stack
-                stack.pop()
+                _ = stack.pop()
                 # Add subexpr to visited
                 visited.add(subexpr)
                 # post-order return it

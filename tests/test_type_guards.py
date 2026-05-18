@@ -17,7 +17,7 @@ def test_is_propositional_logic_guard() -> None:
 
     if logic_asts.is_propositional_logic(obj, str):
         # Type checker should narrow obj to base.BaseExpr[Any]
-        assert_type(obj, base.BaseExpr[str])
+        _ = assert_type(obj, base.BaseExpr[str])
         # Should be able to access BaseExpr methods
         _ = obj.to_nnf()
         _ = obj.expand()
@@ -25,7 +25,7 @@ def test_is_propositional_logic_guard() -> None:
     # Test with Variable
     var: object = Variable("p")
     if logic_asts.is_propositional_logic(var, str):
-        assert_type(var, base.BaseExpr[str])
+        _ = assert_type(var, base.BaseExpr[str])
 
 
 def test_is_ltl_expr_guard() -> None:
@@ -34,7 +34,7 @@ def test_is_ltl_expr_guard() -> None:
 
     if logic_asts.is_ltl_expr(obj, str):
         # Type checker should narrow obj to ltl.LTLExpr[Any]
-        assert_type(obj, ltl.LTLExpr[str])
+        _ = assert_type(obj, ltl.LTLExpr[str])
         # Should be able to access LTLExpr methods
         _ = obj.horizon()
         _ = obj.to_nnf()
@@ -42,7 +42,7 @@ def test_is_ltl_expr_guard() -> None:
     # Test with propositional logic (subset of LTL)
     prop: object = logic_asts.parse_expr("p & q", syntax="base")
     if logic_asts.is_ltl_expr(prop, str):
-        assert_type(prop, ltl.LTLExpr[str])
+        _ = assert_type(prop, ltl.LTLExpr[str])
 
 
 def test_is_strel_expr_guard() -> None:
@@ -51,7 +51,7 @@ def test_is_strel_expr_guard() -> None:
 
     if logic_asts.is_strel_expr(obj, str):
         # Type checker should narrow obj to strel.STRELExpr[Any]
-        assert_type(obj, strel.STRELExpr[str])
+        _ = assert_type(obj, strel.STRELExpr[str])
         # Should be able to access STRELExpr methods
         _ = obj.horizon()
         _ = obj.to_nnf()
@@ -59,7 +59,7 @@ def test_is_strel_expr_guard() -> None:
     # Test with LTL (subset of STREL)
     ltl_expr: object = logic_asts.parse_expr("G p", syntax="ltl")
     if logic_asts.is_strel_expr(ltl_expr, str):
-        assert_type(ltl_expr, strel.STRELExpr[str])
+        _ = assert_type(ltl_expr, strel.STRELExpr[str])
 
 
 def test_is_stl_go_expr_guard() -> None:
@@ -68,7 +68,7 @@ def test_is_stl_go_expr_guard() -> None:
 
     if logic_asts.is_stl_go_expr(obj, str):
         # Type checker should narrow obj to stl_go.STLGOExpr[Any]
-        assert_type(obj, stl_go.STLGOExpr[str])
+        _ = assert_type(obj, stl_go.STLGOExpr[str])
         # Should be able to access STLGOExpr methods
         _ = obj.horizon()
         _ = obj.to_nnf()
@@ -76,7 +76,7 @@ def test_is_stl_go_expr_guard() -> None:
     # Test with propositional logic (subset of STL-GO)
     prop: object = logic_asts.parse_expr("p & q", syntax="base")
     if logic_asts.is_stl_go_expr(prop, str):
-        assert_type(prop, stl_go.STLGOExpr[str])
+        _ = assert_type(prop, stl_go.STLGOExpr[str])
 
 
 def test_negative_guards() -> None:
@@ -148,21 +148,21 @@ def test_subscripted_var_types() -> None:
     # Should pass with subscripted tuple type (checks origin type only)
     if logic_asts.is_propositional_logic(tuple_expr, tuple[str, int]):
         # Type should be narrowed to BaseExpr[tuple[str, int]]
-        assert_type(tuple_expr, base.BaseExpr[tuple[str, int]])
+        _ = assert_type(tuple_expr, base.BaseExpr[tuple[str, int]])
         _ = tuple_expr.to_nnf()
 
     # Test with LTL
     if logic_asts.is_ltl_expr(tuple_expr, tuple[str, int]):
-        assert_type(tuple_expr, ltl.LTLExpr[tuple[str, int]])
+        _ = assert_type(tuple_expr, ltl.LTLExpr[tuple[str, int]])
         _ = tuple_expr.horizon()
 
     # Test with STREL
     if logic_asts.is_strel_expr(tuple_expr, tuple[str, int]):
-        assert_type(tuple_expr, strel.STRELExpr[tuple[str, int]])
+        _ = assert_type(tuple_expr, strel.STRELExpr[tuple[str, int]])
 
     # Test with STL-GO
     if logic_asts.is_stl_go_expr(tuple_expr, tuple[str, int]):
-        assert_type(tuple_expr, stl_go.STLGOExpr[tuple[str, int]])
+        _ = assert_type(tuple_expr, stl_go.STLGOExpr[tuple[str, int]])
 
 
 def test_subscripted_types_runtime_behavior() -> None:

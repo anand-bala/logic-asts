@@ -66,3 +66,7 @@ reportUnknownParameterType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
 reportAny = false
+reportUnreachable = false
+reportUnnecessaryComparison = false
+reportImportCycles = false
+reportUnknownLambdaType = false

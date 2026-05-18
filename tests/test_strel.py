@@ -409,7 +409,7 @@ class TestSTRELParsing:
 class TestSTRELCases:
     """Original test cases from the initial test suite."""
 
-    CASES = [
+    CASES: list[tuple[str, Expr]] = [
         (
             "(G ! obstacle) & ((somewhere^hops [0,2] groundstation) U goal)",
             (

@@ -564,8 +564,8 @@ class TestSimpleEvaluation:
     def test_eval_not(self) -> None:
         """Test Not evaluation."""
         p = Variable("p")
-        assert simple_eval(~p, {"p"}) is False  # type: ignore[arg-type]
-        assert simple_eval(~p, set()) is True  # type: ignore[arg-type]
+        assert simple_eval(~p, {"p"}) is False  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
+        assert simple_eval(~p, set()) is True  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
 
     def test_eval_implies_true(self) -> None:
         """Test Implies evaluation (true implication)."""

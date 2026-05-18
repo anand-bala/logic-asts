@@ -517,7 +517,7 @@ class TestSequenceOperator:
 class TestLTLCases:
     """Original test cases from the initial test suite."""
 
-    CASES = [
+    CASES: list[tuple[str, Expr, float]] = [
         (
             "X(Gp2 U Fp2)",
             ltl.Next(

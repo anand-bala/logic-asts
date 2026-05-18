@@ -145,7 +145,7 @@ class LtlTransform(Transformer[Token, Expr]):
         if modifier is None:
             # weak_next: X p
             return Next(arg, None)
-        elif isinstance(modifier, dict):
+        else:
             if modifier.get("strong"):
                 # strong_next: X[!] p
                 steps = modifier.get("steps")
@@ -154,9 +154,6 @@ class LtlTransform(Transformer[Token, Expr]):
                 # weak_step: X[n] p
                 steps = modifier.get("steps")
                 return Next(arg, steps)
-        else:
-            # Fallback: treat as weak next
-            return Next(arg, None)
 
     def strong_next(self) -> dict[str, typing.Any]:
         # X[!] -> strong next, no steps

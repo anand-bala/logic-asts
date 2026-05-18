@@ -15,6 +15,7 @@ import pytest
 import logic_asts
 import logic_asts.ltl as ltl
 from logic_asts.base import Not, Variable
+from logic_asts.spec import Expr
 from logic_asts.utils import to_nnf
 
 
@@ -163,15 +164,13 @@ class TestExpandCorrectness:
         # Walk the tree and collect all Next/StrongNext operators
         all_next_types: set[str] = set()
 
-        def collect_next_types(node: object) -> None:
+        def collect_next_types(node: Expr) -> None:
             if isinstance(node, ltl.StrongNext):
                 all_next_types.add("StrongNext")
             elif isinstance(node, ltl.Next):
                 all_next_types.add("Next")
-            # Traverse children
-            if hasattr(node, "children"):
-                for child in node.children():
-                    collect_next_types(child)
+            for child in node.children():
+                collect_next_types(child)
 
         collect_next_types(expanded)
         # Should contain StrongNext and not contain Next
@@ -186,15 +185,13 @@ class TestExpandCorrectness:
         # Walk the tree and collect all Next/StrongNext operators
         all_next_types: set[str] = set()
 
-        def collect_next_types(node: object) -> None:
+        def collect_next_types(node: Expr) -> None:
             if isinstance(node, ltl.StrongNext):
                 all_next_types.add("StrongNext")
             elif isinstance(node, ltl.Next):
                 all_next_types.add("Next")
-            # Traverse children
-            if hasattr(node, "children"):
-                for child in node.children():
-                    collect_next_types(child)
+            for child in node.children():
+                collect_next_types(child)
 
         collect_next_types(expanded)
         # Should contain Next and not contain StrongNext
@@ -393,14 +390,13 @@ class TestAlwaysWithStrongFlag:
         expanded = expr.expand()
         all_next_types: set[str] = set()
 
-        def collect_next_types(node: object) -> None:
+        def collect_next_types(node: Expr) -> None:
             if isinstance(node, ltl.StrongNext):
                 all_next_types.add("StrongNext")
             elif isinstance(node, ltl.Next):
                 all_next_types.add("Next")
-            if hasattr(node, "children"):
-                for child in node.children():
-                    collect_next_types(child)
+            for child in node.children():
+                collect_next_types(child)
 
         collect_next_types(expanded)
         assert "StrongNext" in all_next_types
