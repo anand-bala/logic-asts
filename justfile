@@ -2,6 +2,10 @@
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+[private]
+_frozen := if env("FORCE_UV_NO_FREEZE", "") != "1" { " --frozen " } else { "" }
+DEFAULT_UV_ARGS := "--dev" + " " + _frozen
+
 # Default: create the dev environment
 default: dev
 
@@ -11,27 +15,34 @@ dev: sync-venv
 # Format and lint code
 [no-cd]
 fmt:
-    uv run --frozen ruff format
-    uv run --frozen ruff check --output-format concise --fix --exit-non-zero-on-fix .
+    uv run {{ DEFAULT_UV_ARGS }} ruff format
+    uv run {{ DEFAULT_UV_ARGS }} ruff check --output-format concise --fix --exit-non-zero-on-fix .
 
 # Run type checkers
 [no-cd]
 [private]
 ty-check:
-    uv run --frozen ty check --output-format concise
+    uv run {{ DEFAULT_UV_ARGS }} ty check --output-format concise
 
 [no-cd]
 [private]
 pyrefly-check:
-    uv run --frozen pyrefly check --output-format min-text
+    uv run {{ DEFAULT_UV_ARGS }} pyrefly check --output-format min-text
 
 [no-cd]
 [private]
 mypy-check:
-    uv run --frozen mypy --strict
+    uv run {{ DEFAULT_UV_ARGS }} mypy --strict
+
+[no-cd]
+[private]
+pyright-check:
+    uv run {{ DEFAULT_UV_ARGS }} basedpyright
 
 [parallel]
-type-check: ty-check pyrefly-check mypy-check
+type-check: mypy-check pyright-check
+
+# ty-check pyrefly-check
 
 # Run both formatting and type checking
 [no-cd]
@@ -40,14 +51,14 @@ lint: fmt type-check
 # Run tests
 [no-cd]
 test:
-    uv run --dev --frozen pytest --lf
+    uv run  {{ DEFAULT_UV_ARGS }} pytest --lf
 
 docs:
-    uv run --dev --frozen sphinx-build -b html docs/ docs/_build/html
+    uv run  {{ DEFAULT_UV_ARGS }} sphinx-build -b html docs/ docs/_build/html
 
 # Sync virtual environment
 sync-venv:
-    uv sync --all-packages --frozen --inexact --dev
+    uv sync {{ DEFAULT_UV_ARGS }}
 
 # Lock a Python script's dependencies
 lock-script script:

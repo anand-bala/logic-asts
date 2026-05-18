@@ -22,6 +22,7 @@ dev = [
   "pytest-mypy>=1.0.1",
   "rust-just>=1.46.0",
   "pyrefly>=0.49.0",
+  "basedpyright>=1.39.2",
 ]
 
 [build-system]
@@ -58,6 +59,7 @@ extend-ignore = ["F722", "PYI041"]
 
 [tool.pyright]
 pythonVersion = "3.10"
+include = ["src", "tests"]
 pythonPlatform = "All"
 reportUnknownMemberType = false
 reportUnknownParameterType = false
