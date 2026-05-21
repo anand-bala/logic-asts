@@ -79,6 +79,42 @@ def test_is_stl_go_expr_guard() -> None:
         _ = assert_type(prop, stl_go.STLGOExpr[str])
 
 
+def test_ltl_boolean_connective_over_temporal() -> None:
+    """Regression: Boolean connectives wrapping temporal ops must pass is_ltl_expr.
+
+    Previously, is_ltl_expr called is_propositional_logic on each node from
+    iter_subtree(), which recursed into sub-subtrees and found temporal
+    operators inside Boolean nodes, causing false negatives.
+    """
+    # (F a) & (F b)
+    and_of_eventually: object = logic_asts.parse_expr("(F(a) & F(b))", syntax="ltl")
+    assert logic_asts.is_ltl_expr(and_of_eventually, str)
+    assert logic_asts.is_ltl_expr(and_of_eventually, None)
+
+    # G a | G b
+    or_of_globally: object = logic_asts.parse_expr("(G(a) | G(b))", syntax="ltl")
+    assert logic_asts.is_ltl_expr(or_of_globally, str)
+
+    # !(F a)
+    not_eventually: object = logic_asts.parse_expr("!(F(a))", syntax="ltl")
+    assert logic_asts.is_ltl_expr(not_eventually, str)
+
+    # Nested: G(a & F b)
+    nested: object = logic_asts.parse_expr("G(a & F(b))", syntax="ltl")
+    assert logic_asts.is_ltl_expr(nested, str)
+
+    # Same expressions must still fail is_propositional_logic
+    assert not logic_asts.is_propositional_logic(and_of_eventually, str)
+    assert not logic_asts.is_propositional_logic(or_of_globally, str)
+
+
+def test_strel_boolean_connective_over_spatial() -> None:
+    """Regression: Boolean connectives wrapping spatial ops must pass is_strel_expr."""
+    expr: object = logic_asts.parse_expr("somewhere[0,10] p & everywhere[0,5] q", syntax="strel")
+    assert logic_asts.is_strel_expr(expr, str)
+    assert not logic_asts.is_ltl_expr(expr, str)
+
+
 def test_negative_guards() -> None:
     """Test that guards correctly reject non-matching types."""
     not_an_expr: object = "just a string"

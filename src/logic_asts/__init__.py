@@ -65,8 +65,10 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
         Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
+        check_type = typing.get_origin(var_type) or var_type if var_type else None
         return all(
-            is_propositional_logic(expr, var_type)
+            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
+            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
             or isinstance(
                 expr,
                 ltl.Next
@@ -92,9 +94,22 @@ def is_strel_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Ty
         Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
+        check_type = typing.get_origin(var_type) or var_type if var_type else None
         return all(
-            is_propositional_logic(expr, var_type)
-            or is_ltl_expr(expr, var_type)
+            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
+            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
+            or isinstance(
+                expr,
+                ltl.Next
+                | ltl.StrongNext
+                | ltl.Always
+                | ltl.Eventually
+                | ltl.Until
+                | ltl.WeakUntil
+                | ltl.Release
+                | ltl.StrongRelease
+                | ltl.Sequence,
+            )
             or isinstance(expr, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
             for expr in obj.iter_subtree()
         )
@@ -108,9 +123,22 @@ def is_stl_go_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.T
         Using ``None`` as the ``var_type`` will automatically make the variable type check pass.
     """
     if isinstance(obj, Expr):
+        check_type = typing.get_origin(var_type) or var_type if var_type else None
         return all(
-            is_propositional_logic(expr, var_type)
-            or is_ltl_expr(expr, var_type)
+            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
+            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
+            or isinstance(
+                expr,
+                ltl.Next
+                | ltl.StrongNext
+                | ltl.Always
+                | ltl.Eventually
+                | ltl.Until
+                | ltl.WeakUntil
+                | ltl.Release
+                | ltl.StrongRelease
+                | ltl.Sequence,
+            )
             or isinstance(expr, stl_go.GraphIncoming | stl_go.GraphOutgoing)
             for expr in obj.iter_subtree()
         )
