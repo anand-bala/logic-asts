@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-22T15:18:55.072589507Z"
+exclude-newer = "2026-04-22T18:10:56.530781869Z"
 exclude-newer-span = "P30D"
 
 [[package]]
@@ -492,7 +492,7 @@ wheels = [
 
 [[package]]
 name = "logic-asts"
-version = "1.5.3"
+version = "1.5.4"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
