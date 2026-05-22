@@ -47,6 +47,10 @@ exclude = ["^build/"]
 show_error_codes = true
 namespace_packages = false
 
+[[tool.mypy.overrides]]
+module = ["spot"]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 127
 
