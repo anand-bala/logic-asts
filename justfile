@@ -2,10 +2,6 @@
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
-[private]
-_frozen := if env("FORCE_UV_NO_FREEZE", "") != "1" { " --frozen " } else { "" }
-DEFAULT_UV_ARGS := "--dev" + " " + _frozen
-
 # Default: create the dev environment
 default: dev
 
@@ -15,29 +11,29 @@ dev: sync-venv
 # Format and lint code
 [no-cd]
 fmt:
-    uv run {{ DEFAULT_UV_ARGS }} ruff format
-    uv run {{ DEFAULT_UV_ARGS }} ruff check --output-format concise --fix --exit-non-zero-on-fix .
+    ruff format
+    ruff check --output-format concise --fix --exit-non-zero-on-fix .
 
 # Run type checkers
 [no-cd]
 [private]
 ty-check:
-    uv run {{ DEFAULT_UV_ARGS }} ty check --output-format concise
+    ty check --output-format concise
 
 [no-cd]
 [private]
 pyrefly-check:
-    uv run {{ DEFAULT_UV_ARGS }} pyrefly check --output-format min-text
+    pyrefly check --output-format min-text
 
 [no-cd]
 [private]
 mypy-check:
-    uv run {{ DEFAULT_UV_ARGS }} mypy --strict
+    mypy --strict
 
 [no-cd]
 [private]
 pyright-check:
-    uv run {{ DEFAULT_UV_ARGS }} basedpyright
+    basedpyright
 
 [parallel]
 type-check: mypy-check pyright-check
@@ -51,18 +47,14 @@ lint: fmt type-check
 # Run tests
 [no-cd]
 test:
-    uv run  {{ DEFAULT_UV_ARGS }} pytest --lf
+    pytest --lf
 
 docs:
-    uv run  {{ DEFAULT_UV_ARGS }} sphinx-build -b html docs/ docs/_build/html
+    sphinx-build -b html docs/ docs/_build/html
 
 # Sync virtual environment
 sync-venv:
-    uv sync {{ DEFAULT_UV_ARGS }}
-
-# Lock a Python script's dependencies
-lock-script script:
-    uv lock --script {{ script }}
+    pixi install --frozen
 
 # Release workflow
 
@@ -74,6 +66,7 @@ bump-version *args: lint test
     echo    # (optional) move to a new line
     if [[ $REPLY =~ ^[Yy]$ ]]; then
       uv version --bump {{ args }}
+      pixi lock
     fi
 
 tag-package:
