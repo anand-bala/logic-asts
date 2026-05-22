@@ -14,14 +14,23 @@ start: expr
 // Extended binary operations
 // Support U (until), W (weak until), R (release), M (strong release)
 ?ex_binary: unary
-         | ex_binary ("until" | "U") [time_interval] unary -> until
-         | ex_binary ("W") [time_interval] unary -> weak_until
-         | ex_binary ("R") [time_interval] unary -> release
-         | ex_binary ("M") [time_interval] unary -> strong_release
+         | ex_binary "U" [time_interval] unary -> until
+         | ex_binary "W" [time_interval] unary -> weak_until
+         | ex_binary "R" [time_interval] unary -> release
+         | ex_binary "M" [time_interval] unary -> strong_release
 
-%extend ?unary: ("globally" | "G") [strong_time_interval] unary    -> always
-                 | ("eventually" | "F") [strong_time_interval] unary  -> eventually
-                 | ("next" | "X") next_modifier unary        -> next
+// Negative lookahead on (?!\d) implements Spot's atomic-proposition rule 3:
+// an alphanumeric run starting with one of F, G, or X whose second character
+// is a digit is a single atomic proposition (e.g. X1, F100abc, G0), so the
+// unary operator must refuse to consume just the leading F/G/X in that case.
+// CNAME then naturally consumes the whole run as a variable.
+%extend ?unary: _G_OP [strong_time_interval] unary    -> always
+                 | _F_OP [strong_time_interval] unary  -> eventually
+                 | _X_OP next_modifier unary           -> next
+
+_G_OP: /G(?!\d)/
+_F_OP: /F(?!\d)/
+_X_OP: /X(?!\d)/
 
 // Next modifier: empty (weak), [n] (weak n-steps), [!] (strong), [n!] (strong n-steps)
 ?next_modifier: "[" INT "!" "]"  -> strong_step

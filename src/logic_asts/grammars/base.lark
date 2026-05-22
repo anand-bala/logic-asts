@@ -22,11 +22,17 @@ start: expr
      | IDENTIFIER
      | "(" expr ")"
 
-TRUE: ("1" | "TRUE" | "True" | "true")
-FALSE: ("0" | "FALSE" | "False" | "false")
+// Priority .2 so these out-rank inline single-letter operator keywords like
+// "F" (eventually) and "G" (globally) defined in extending grammars; the
+// negative lookahead enforces a word boundary so adjacent identifier
+// characters keep the whole run as an atomic proposition (e.g. "TRUEx" and
+// "xFALSE" lex as a single CNAME atomic proposition, not as a constant).
+// The case-insensitive flag matches Spot's behavior on "true" and "false".
+TRUE.2: /(?:1|(?i:true))(?!\w)/
+FALSE.2: /(?:0|(?i:false))(?!\w)/
 IDENTIFIER: CNAME | ESCAPED_STRING
 
-ESCAPED_STRING:  /(".*?(?<!\\)(\\\\)*?"|'.*?(?<!\\)(\\\\)*?')/i
+ESCAPED_STRING:  /".*?(?<!\\)(\\\\)*?"/
 
 %import common.CNAME
 %import common.WS

@@ -330,7 +330,7 @@ class Literal(Expr):
 
     @override
     def __str__(self) -> str:
-        return "t" if self.value else "f"
+        return "1" if self.value else "0"
 
     @override
     def __invert__(self) -> Literal:

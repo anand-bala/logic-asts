@@ -55,14 +55,14 @@ class TestAtomicExpressions:
         """Test Literal(True) creation and properties."""
         lit = Literal(True)
         assert lit.value is True
-        assert str(lit) == "t"
+        assert str(lit) == "1"
         assert lit.horizon() == 0
 
     def test_literal_false(self) -> None:
         """Test Literal(False) creation and properties."""
         lit = Literal(False)
         assert lit.value is False
-        assert str(lit) == "f"
+        assert str(lit) == "0"
         assert lit.horizon() == 0
 
     def test_variable_string(self) -> None:
