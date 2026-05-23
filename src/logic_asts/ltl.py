@@ -28,7 +28,7 @@ Examples:
     >>> request = Variable("request")
     >>> response = Variable("response")
     >>> print(Implies(request, Eventually(response)))
-    request -> (F response)
+    (request -> (F response))
 
     Safety property: `G ~error`
     >>> error = Variable("error")
@@ -96,13 +96,21 @@ class TimeInterval:
 
     @override
     def __str__(self) -> str:
-        match (self.start, self.end):
-            case None, None:
-                return ""
-            case _:
-                start_str = str(self.start) if self.start is not None else ""
-                end_str = str(self.end) if self.end is not None else ""
-                return f"[{start_str}, {end_str}]"
+        return self.format()
+
+    def format(self, *, strong: bool = False) -> str:
+        r"""Render the interval, optionally with the strong ``!`` marker.
+
+        ``strong=True`` produces ``[a, b!]`` and is required by the grammar
+        when an enclosing Always/Eventually is strong; without it the strong
+        flag would be lost on round-trip.
+        """
+        if self.start is None and self.end is None and not strong:
+            return ""
+        start_str = str(self.start) if self.start is not None else ""
+        end_str = str(self.end) if self.end is not None else ""
+        suffix = "!" if strong else ""
+        return f"[{start_str}, {end_str}{suffix}]"
 
     def duration(self) -> int | float:
         r"""Calculate the duration of the interval.
@@ -334,7 +342,7 @@ class Always(Expr):
 
     @override
     def __str__(self) -> str:
-        return f"(G{self.interval or ''} {self.arg})"
+        return f"(G{self.interval.format(strong=self.strong)} {self.arg})"
 
     @override
     def expand(self) -> Expr:
@@ -407,7 +415,7 @@ class Eventually(Expr):
 
     @override
     def __str__(self) -> str:
-        return f"(F{self.interval or ''} {self.arg})"
+        return f"(F{self.interval.format(strong=self.strong)} {self.arg})"
 
     @override
     def expand(self) -> Expr:

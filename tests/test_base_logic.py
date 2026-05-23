@@ -76,13 +76,13 @@ class TestAtomicExpressions:
         """Test Variable with tuple name."""
         var = Variable(("agent", 0))
         assert var.name == ("agent", 0)
-        assert str(var) == "('agent', 0)"
+        assert str(var) == "\"('agent', 0)\""
 
     def test_variable_int(self) -> None:
         """Test Variable with integer name."""
         var = Variable(42)
         assert var.name == 42
-        assert str(var) == "42"
+        assert str(var) == '"42"'
 
 
 class TestBinaryOperators:
@@ -151,7 +151,7 @@ class TestBinaryOperators:
         p = Variable("p")
         q = Variable("q")
         impl = Implies(p, q)
-        assert str(impl) == "p -> q"
+        assert str(impl) == "(p -> q)"
         assert impl.lhs == p
         assert impl.rhs == q
 
@@ -160,7 +160,7 @@ class TestBinaryOperators:
         p = Variable("p")
         q = Variable("q")
         equiv = Equiv(p, q)
-        assert str(equiv) == "p <-> q"
+        assert str(equiv) == "(p <-> q)"
         assert equiv.lhs == p
         assert equiv.rhs == q
 
@@ -169,7 +169,7 @@ class TestBinaryOperators:
         p = Variable("p")
         q = Variable("q")
         xor = Xor(p, q)
-        assert str(xor) == "p ^ q"
+        assert str(xor) == "(p ^ q)"
         assert xor.lhs == p
         assert xor.rhs == q
 

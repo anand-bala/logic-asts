@@ -20,6 +20,7 @@ Examples:
 
 from __future__ import annotations
 
+import re
 import typing
 from collections.abc import Hashable, Iterator
 from collections.abc import Set as AbstractSet
@@ -32,6 +33,25 @@ from typing_extensions import Self, override
 from logic_asts.spec import Expr, ExprVisitor
 
 Var = TypeVar("Var", bound=Hashable)
+
+# A bare CNAME: matches lark's common.CNAME ((_|LETTER)(_|LETTER|DIGIT)*).
+_CNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*$")
+# Names that would lex as the TRUE / FALSE literals in the grammars.
+_RESERVED_LITERAL_NAMES = frozenset({"0", "1", "true", "false", "True", "False", "TRUE", "FALSE"})
+
+
+def _format_variable_name(name: object) -> str:
+    """Format a variable name so it round-trips through ``parse_expr``.
+
+    Bare CNAME identifiers that don't collide with literal keywords are
+    emitted as-is; everything else is wrapped in double quotes with ``\\``
+    and ``"`` escaped, matching the grammar's ``ESCAPED_STRING`` form.
+    """
+    text = str(name)
+    if _CNAME_RE.match(text) and text not in _RESERVED_LITERAL_NAMES:
+        return text
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 @final
@@ -52,7 +72,7 @@ class Implies(Expr):
 
     @override
     def __str__(self) -> str:
-        return f"{self.lhs} -> {self.rhs}"
+        return f"({self.lhs} -> {self.rhs})"
 
     @override
     def expand(self) -> Expr:
@@ -87,7 +107,7 @@ class Equiv(Expr):
 
     @override
     def __str__(self) -> str:
-        return f"{self.lhs} <-> {self.rhs}"
+        return f"({self.lhs} <-> {self.rhs})"
 
     @override
     def expand(self) -> Expr:
@@ -124,7 +144,7 @@ class Xor(Expr):
 
     @override
     def __str__(self) -> str:
-        return f"{self.lhs} ^ {self.rhs}"
+        return f"({self.lhs} ^ {self.rhs})"
 
     @override
     def expand(self) -> Expr:
@@ -294,7 +314,7 @@ class Variable(Expr, Generic[Var]):
 
     @override
     def __str__(self) -> str:
-        return str(self.name)
+        return _format_variable_name(self.name)
 
     @override
     def expand(self) -> Expr:

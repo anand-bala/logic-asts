@@ -29,6 +29,29 @@ from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewh
 GRAMMARS_DIR = Path(__file__).parent
 
 
+def _unquote_identifier(text: str) -> str:
+    """Strip the outer quotes and undo grammar-level escapes for ``ESCAPED_STRING``.
+
+    The base/ltl grammars wrap escaped identifiers in ``"..."``; strel/stl_go
+    also accept ``'...'``. Inside the quotes only ``\\\\`` and the matching
+    quote character are escaped.
+    """
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ('"', "'"):
+        inner = text[1:-1]
+        out: list[str] = []
+        i = 0
+        while i < len(inner):
+            ch = inner[i]
+            if ch == "\\" and i + 1 < len(inner):
+                out.append(inner[i + 1])
+                i += 2
+            else:
+                out.append(ch)
+                i += 1
+        return "".join(out)
+    return text
+
+
 @typing.final
 @v_args(inline=True)
 class BaseTransform(Transformer[Token, Expr]):
@@ -81,7 +104,7 @@ class BaseTransform(Transformer[Token, Expr]):
         return expr
 
     def IDENTIFIER(self, value: Token | str) -> Variable[str]:  # noqa: N802
-        return Variable(str(value))
+        return Variable(_unquote_identifier(str(value)))
 
 
 @typing.final
