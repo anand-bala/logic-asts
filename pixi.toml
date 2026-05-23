@@ -14,6 +14,7 @@ logic-asts = { path = ".", editable = true }
 [feature.test.dependencies]
 pytest = "*"
 pytest-mypy = "*"
+pytest-timeout = "*"
 hypothesis = "*"
 spot = "*"
 
