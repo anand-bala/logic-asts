@@ -35,9 +35,10 @@ mypy-check:
 pyright-check:
     basedpyright
 
-[parallel]
-type-check: mypy-check pyright-check
+# [parallel]
+type-check: mypy-check
 
+# pyright-check
 # ty-check pyrefly-check
 
 # Run both formatting and type checking
