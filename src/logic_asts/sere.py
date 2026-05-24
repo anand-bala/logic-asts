@@ -11,6 +11,11 @@ Operators implemented:
     - Alt    ``|`` (alternation, distinct from Boolean Or at the SERE level)
     - Inter  ``&&`` (length-matching intersection)
     - Repeat ``[*]``, ``[+]``, ``[*i]``, ``[*i..j]``, ``[*i..]``
+
+Out of scope (not supported): delay operators ``##i`` / ``##[i..j]``,
+goto / equal / non-consecutive repetitions ``[->i..j]``, ``[=i..j]``,
+``[:*i..j]``, ``[:+]``, ``first_match``, and the non-length-matching
+intersection ``&``.
 """
 
 from __future__ import annotations

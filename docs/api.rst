@@ -33,6 +33,20 @@ Signal Temporal Logic with Graph Operators
    :members:
    :show-inheritance:
 
+Sequential Extended Regular Expressions
+---------------------------------------
+
+.. automodule:: logic_asts.sere
+   :members:
+   :show-inheritance:
+
+Property Specification Logic
+----------------------------
+
+.. automodule:: logic_asts.psl
+   :members:
+   :show-inheritance:
+
 Grammars
 --------
 

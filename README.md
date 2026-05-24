@@ -9,7 +9,7 @@ eliminating the need to create new parsers for each application.
 
 ## Supported Logics
 
-The library implements complete support for four logical systems:
+The library implements complete support for the following logical systems:
 
 1. **Propositional Logic (base)**:
    Classical Boolean logic with conjunction, disjunction, negation, implication,
@@ -32,6 +32,23 @@ The library implements complete support for four logical systems:
    over multi-agent communication networks.
    Includes incoming and outgoing edge quantifiers with weight and count
    constraints.
+
+5. **Sequential Extended Regular Expressions (sere)**:
+   Regex-like patterns over Boolean state formulas.
+   Only a *core subset* of Spot's SERE syntax is supported: concatenation
+   (`;`), fusion (`:`), alternation (`|`), length-matching intersection
+   (`&&`), and repetition (`[*]`, `[+]`, `[*i]`, `[*i..j]`, `[*i..]`).
+   Delay operators (`##i`, `##[i..j]`), goto/equal/non-consecutive
+   repetitions (`[->i..j]`, `[=i..j]`, `[:*i..j]`, `[:+]`), `first_match`,
+   and non-length-matching intersection (`&`) are *not* supported.
+
+6. **Property Specification Logic (psl)**:
+   LTL extended with the SERE-LTL binding operators `{r}[]-> f`,
+   `{r}<>-> f`, `{r}`, `{r}!`, and `!{r}` (plus the sugar `{r}[]=> f` and
+   `{r}<>=> f`).
+   The PSL surface is correspondingly limited to LTL plus the SERE subset
+   above: no quantifiers, no Spot-style automatic simplification rules,
+   and no trace evaluation.
 
 ## Installation
 
@@ -64,6 +81,12 @@ strel = logic_asts.parse_expr("G everywhere[0,5] ~obstacle", syntax="strel")
 
 # Graph-based temporal logic
 stl_go = logic_asts.parse_expr("in^[0,1]{E}_{c}[1,n] consensus", syntax="stl_go")
+
+# Sequential Extended Regular Expressions
+sere = logic_asts.parse_expr("a ; b[+] ; c", syntax="sere")
+
+# PSL (LTL + SERE bindings)
+psl = logic_asts.parse_expr("{a;b}[]-> F c", syntax="psl")
 ```
 
 Create expressions programmatically:
@@ -122,8 +145,10 @@ for node in ltl_expr_iter(expr):              # Iterator[LTLExpr[str]]
 | `LTLExpr[AP]` | `ltl_expr_iter(expr)` |
 | `STRELExpr[AP]` | `strel_expr_iter(expr)` |
 | `STLGOExpr[AP]` | `stlgo_expr_iter(expr)` |
+| `SEREExpr[AP]` | `sere_expr_iter(expr)` |
+| `PSLExpr[AP]` | `psl_expr_iter(expr)` |
 
-All four functions also validate that the subtree contains no out-of-dialect
+All of these functions also validate that the subtree contains no out-of-dialect
 nodes and raise `TypeError` at runtime if it does.
 
 ### Pattern 2 -- type-guard then typed iterator

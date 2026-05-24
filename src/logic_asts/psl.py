@@ -2,6 +2,14 @@ r"""Abstract syntax trees for PSL (Property Specification Logic).
 
 PSL adds the SERE-LTL binding operators on top of LTL. See Spot's
 ``tl.pdf``, section 2.6.
+
+Scope: only a *subset* of Spot's PSL is supported. Bindings provided here
+are ``{r}[]-> f``, ``{r}<>-> f``, ``{r}``, ``{r}!``, ``!{r}``, plus the
+sugar ``{r}[]=> f`` and ``{r}<>=> f``. The PSL surface inherits the SERE
+subset from :mod:`logic_asts.sere` (no delays, no goto/equal/non-consecutive
+repetitions, no ``first_match``, no non-length-matching intersection).
+Quantifiers, Spot's automatic simplification rules, and trace evaluation
+are out of scope for this module.
 """
 
 from __future__ import annotations
