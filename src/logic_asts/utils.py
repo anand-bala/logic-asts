@@ -49,8 +49,7 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
     - ~G f = F ~f
     - ~F f = G ~f
     """
-    # Expand early unless we're handling Sequence (which has special negation semantics)
-    if not _expanded and not isinstance(expr, logic.ltl.Sequence):
+    if not _expanded:
         expr = expr.expand()
         _expanded = True
 
@@ -153,18 +152,6 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
                 to_nnf(rhs, _expanded=_expanded),
                 interval,
             )
-        case logic.ltl.Sequence(args):
-            # ~(a ; b ; c) = ~a | X(~(b ; c)), recursing until a single negated Next remains
-            if negate:
-                head = to_nnf(args[0], negate=True, _expanded=True)
-                if len(args) == 2:
-                    tail = logic.ltl.Next(to_nnf(args[1], negate=True, _expanded=True))
-                else:
-                    tail = logic.ltl.Next(to_nnf(logic.ltl.Sequence(args[1:]), negate=True, _expanded=True))
-                return logic.Or((head, tail))
-            # Not negated: preserve Sequence structure with recursed args
-            return logic.ltl.Sequence(tuple(to_nnf(a, _expanded=True) for a in args))
-
         case logic.strel.Everywhere(arg, interval, dist_fn):
             if negate:
                 # ~(E A) = E S (negate dual: Everywhere to Somewhere)

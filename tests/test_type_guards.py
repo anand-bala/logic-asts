@@ -7,7 +7,7 @@ for static type checkers like mypy. Run with: mypy tests/test_type_guards.py
 from typing_extensions import assert_type
 
 import logic_asts
-from logic_asts import base, ltl, stl_go, strel
+from logic_asts import base, ltl, psl, sere, stl_go, strel
 from logic_asts.base import Variable
 
 
@@ -77,6 +77,55 @@ def test_is_stl_go_expr_guard() -> None:
     prop: object = logic_asts.parse_expr("p & q", syntax="base")
     if logic_asts.is_stl_go_expr(prop, str):
         _ = assert_type(prop, stl_go.STLGOExpr[str])
+
+
+def test_is_sere_expr_guard() -> None:
+    """Test is_sere_expr narrows to SEREExpr."""
+    obj: object = logic_asts.parse_expr("a ; b[+] ; c", syntax="sere")
+
+    if logic_asts.is_sere_expr(obj, str):
+        # Type checker should narrow obj to sere.SEREExpr[Any]
+        _ = assert_type(obj, sere.SEREExpr[str])
+
+    # Pure Boolean tree is a subset of SERE
+    prop: object = logic_asts.parse_expr("p & q", syntax="base")
+    assert logic_asts.is_sere_expr(prop, str)
+    if logic_asts.is_sere_expr(prop, str):
+        _ = assert_type(prop, sere.SEREExpr[str])
+
+    # Cross-dialect rejection: LTL temporal operators are not SERE
+    ltl_expr: object = logic_asts.parse_expr("G p", syntax="ltl")
+    assert not logic_asts.is_sere_expr(ltl_expr, str)
+
+
+def test_is_psl_expr_guard() -> None:
+    """Test is_psl_expr narrows to PSLExpr."""
+    obj: object = logic_asts.parse_expr("{a;b}[]-> F c", syntax="psl")
+
+    if logic_asts.is_psl_expr(obj, str):
+        # Type checker should narrow obj to psl.PSLExpr[Any]
+        _ = assert_type(obj, psl.PSLExpr[str])
+
+    # LTL is a subset of PSL
+    ltl_expr: object = logic_asts.parse_expr("G(p -> F q)", syntax="ltl")
+    assert logic_asts.is_psl_expr(ltl_expr, str)
+
+    # Pure Boolean tree is a subset of PSL
+    prop: object = logic_asts.parse_expr("p & q", syntax="base")
+    assert logic_asts.is_psl_expr(prop, str)
+    if logic_asts.is_psl_expr(prop, str):
+        _ = assert_type(prop, psl.PSLExpr[str])
+
+    # Cross-dialect rejection: STREL spatial operators are not PSL
+    strel_expr: object = logic_asts.parse_expr("somewhere[0,10] p", syntax="strel")
+    assert not logic_asts.is_psl_expr(strel_expr, str)
+
+
+def test_bool_accepted_by_sere_and_psl() -> None:
+    """A pure Boolean tree should be accepted by both is_sere_expr and is_psl_expr."""
+    prop: object = logic_asts.parse_expr("(p & q) | ~r", syntax="base")
+    assert logic_asts.is_sere_expr(prop, str)
+    assert logic_asts.is_psl_expr(prop, str)
 
 
 def test_ltl_boolean_connective_over_temporal() -> None:

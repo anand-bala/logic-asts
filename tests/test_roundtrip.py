@@ -30,6 +30,14 @@ from lark.exceptions import LarkError
 from logic_asts import parse_expr
 from logic_asts.base import Variable
 from logic_asts.grammars import SupportedGrammars
+from logic_asts.psl import (
+    NegStrongClosure,
+    StrongClosure,
+    SuffixImpliesExist,
+    SuffixImpliesUniv,
+    WeakClosure,
+)
+from logic_asts.sere import Alt, Concat, Fusion, Inter, Repeat
 from logic_asts.spec import Expr
 
 # Cache the Lark parser per syntax so each example doesn't pay parser-build cost.
@@ -100,3 +108,65 @@ def test_known_unsafe_variable_names_roundtrip(name: str) -> None:
     expr = Variable(name)
     parsed = parse_expr(str(expr), syntax="base")
     assert parsed == expr
+
+
+def _bool_atom_strategy() -> st.SearchStrategy[Expr]:
+    return st.builds(Variable, st.sampled_from(["a", "b", "c", "d"]))
+
+
+def sere_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
+    return st.recursive(
+        _bool_atom_strategy(),
+        lambda children: st.one_of(
+            st.builds(
+                Concat,
+                st.lists(children, min_size=2, max_size=4).map(tuple),
+            ),
+            st.builds(
+                Fusion,
+                st.lists(children, min_size=2, max_size=3).map(tuple),
+            ),
+            st.builds(
+                Alt,
+                st.lists(children, min_size=2, max_size=3).map(tuple),
+            ),
+            st.builds(
+                Inter,
+                st.lists(children, min_size=2, max_size=3).map(tuple),
+            ),
+            st.tuples(
+                children,
+                st.integers(min_value=0, max_value=4),
+                st.one_of(st.none(), st.integers(min_value=0, max_value=6)),
+            )
+            .filter(lambda t: t[2] is None or t[1] <= t[2])
+            .map(lambda t: Repeat(t[0], t[1], t[2])),
+        ),
+        max_leaves=max_leaves,
+    )
+
+
+@_COMMON_SETTINGS
+@given(expr=sere_strategy())
+def test_sere_round_trips(expr: Expr) -> None:
+    assert parse_expr(str(expr), syntax="sere") == expr
+
+
+def psl_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
+    sere = sere_strategy(max_leaves=4)
+    formulas = _bool_atom_strategy()
+
+    return st.one_of(
+        st.builds(SuffixImpliesUniv, sere, formulas),
+        st.builds(SuffixImpliesExist, sere, formulas),
+        st.builds(WeakClosure, sere),
+        st.builds(StrongClosure, sere),
+        st.builds(NegStrongClosure, sere),
+        formulas,
+    )
+
+
+@_COMMON_SETTINGS
+@given(expr=psl_strategy())
+def test_psl_round_trips(expr: Expr) -> None:
+    assert parse_expr(str(expr), syntax="psl") == expr

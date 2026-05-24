@@ -395,125 +395,6 @@ class TestLTLParsing:
         assert expr.interval.end is None
 
 
-class TestSequenceOperator:
-    """Tests for Sequence (;) operator."""
-
-    def test_sequence_str_binary(self) -> None:
-        """Test string representation for two args."""
-        p = Variable("p")
-        q = Variable("q")
-        assert str(ltl.Sequence((p, q))) == "(p ; q)"
-
-    def test_sequence_str_nary(self) -> None:
-        """Test string representation for three args."""
-        p = Variable("p")
-        q = Variable("q")
-        r = Variable("r")
-        assert str(ltl.Sequence((p, q, r))) == "(p ; q ; r)"
-
-    def test_sequence_children(self) -> None:
-        """Test children yields all operands."""
-        p = Variable("p")
-        q = Variable("q")
-        r = Variable("r")
-        expr = ltl.Sequence((p, q, r))
-        assert list(expr.children()) == [p, q, r]
-
-    def test_sequence_horizon_binary(self) -> None:
-        """Test horizon for two args: max(0, 1+0) = 1."""
-        p = Variable("p")
-        q = Variable("q")
-        assert ltl.Sequence((p, q)).horizon() == 1
-
-    def test_sequence_horizon_nary(self) -> None:
-        """Test horizon for three args: max(0, 1, 2) = 2."""
-        p = Variable("p")
-        q = Variable("q")
-        r = Variable("r")
-        assert ltl.Sequence((p, q, r)).horizon() == 2
-
-    def test_sequence_horizon_with_temporal_arg(self) -> None:
-        """Test horizon when an arg contains a temporal operator."""
-        p = Variable("p")
-        q = Variable("q")
-        assert math.isinf(ltl.Sequence((p, ltl.Always(q))).horizon())
-
-    def test_sequence_expand_binary(self) -> None:
-        """Test expand() for two args: p ; q  ==>  p & X(q)."""
-        p = Variable("p")
-        q = Variable("q")
-        expanded = ltl.Sequence((p, q)).expand()
-        assert isinstance(expanded, And)
-        children = list(expanded.children())
-        assert p in children
-        assert any(isinstance(c, ltl.Next) and c.arg == q for c in children)
-
-    def test_sequence_expand_nary(self) -> None:
-        """Test right-fold expand: a ; b ; c  ==>  a & X(b & X(c))."""
-        a = Variable("a")
-        b = Variable("b")
-        c = Variable("c")
-        expanded = ltl.Sequence((a, b, c)).expand()
-        assert isinstance(expanded, And)
-        outer_children = list(expanded.children())
-        assert a in outer_children
-        next_node = next(ch for ch in outer_children if isinstance(ch, ltl.Next))
-        inner = next_node.arg
-        assert isinstance(inner, And)
-        inner_children = list(inner.children())
-        assert b in inner_children
-        assert any(isinstance(c2, ltl.Next) and c2.arg == c for c2 in inner_children)
-
-    def test_sequence_expand_right_associative(self) -> None:
-        """Test that expand is right-associative: a;b;c = a & X(b & X(c)), not (a & X(b)) & X(c)."""
-        a = Variable("a")
-        b = Variable("b")
-        c = Variable("c")
-        right_assoc = a & ltl.Next(b & ltl.Next(c))
-        left_assoc = (a & ltl.Next(b)) & ltl.Next(c)
-        expanded = ltl.Sequence((a, b, c)).expand()
-        assert expanded == right_assoc
-        assert expanded != left_assoc
-
-    def test_sequence_nnf(self) -> None:
-        """Test NNF of Sequence is preserved."""
-        p = Variable("p")
-        q = Variable("q")
-        nnf = ltl.Sequence((p, q)).to_nnf()
-        assert isinstance(nnf, ltl.Sequence)
-
-    def test_sequence_negated_nnf(self) -> None:
-        """Test NNF of negated Sequence: ~(p ; q) = ~p | X(~q)."""
-        from logic_asts.base import Or
-
-        p = Variable("p")
-        q = Variable("q")
-        nnf = (~ltl.Sequence((p, q))).to_nnf()
-        assert isinstance(nnf, Or)
-
-    def test_parse_sequence_binary(self) -> None:
-        """Test parsing two-item sequence."""
-        expr = logic_asts.parse_expr("p ; q", syntax="ltl")
-        assert isinstance(expr, ltl.Sequence)
-        assert expr.args == (Variable("p"), Variable("q"))
-
-    def test_parse_sequence_nary(self) -> None:
-        """Test that p ; q ; r parses into a single Sequence with three args."""
-        expr = logic_asts.parse_expr("p ; q ; r", syntax="ltl")
-        assert isinstance(expr, ltl.Sequence)
-        assert expr.args == (Variable("p"), Variable("q"), Variable("r"))
-
-    def test_parse_sequence_lower_precedence_than_implies(self) -> None:
-        """Test that ; binds looser than ->, so p -> q ; r -> s = (p->q);(r->s)."""
-        from logic_asts.base import Implies
-
-        expr = logic_asts.parse_expr("p -> q ; r -> s", syntax="ltl")
-        assert isinstance(expr, ltl.Sequence)
-        assert len(expr.args) == 2
-        assert isinstance(expr.args[0], Implies)
-        assert isinstance(expr.args[1], Implies)
-
-
 class TestLTLCases:
     """Original test cases from the initial test suite."""
 
@@ -565,3 +446,11 @@ class TestLTLCases:
         parsed = logic_asts.parse_expr(expr, syntax="ltl")
         assert parsed == expected_ast, (parsed, expected_ast)
         assert parsed.horizon() == expected_ast.horizon() == expected_horizon
+
+
+def test_semicolon_no_longer_parses_as_ltl() -> None:
+    """After 1.6.0, ';' belongs to SERE, not LTL."""
+    import lark.exceptions
+
+    with pytest.raises(lark.exceptions.LarkError):
+        logic_asts.parse_expr("p ; q", syntax="ltl")

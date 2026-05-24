@@ -32,9 +32,9 @@ SPOT_DIVERGENT_PATTERN = re.compile(
     # producing a parse that Spot rejects. Skip these inputs.
     (?:^|[^A-Za-z0-9_])(?:TRUE|FALSE)[A-Za-z0-9_]
     |
-    # ``;`` is the sequence operator that logic_asts adds on top of Spot's LTL
-    # syntax; in Spot land ``;`` belongs to SERE / PSL, not LTL, so ltlfilt
-    # ``--ltl`` rejects any formula containing it.
+    # ``;`` belongs to SERE / PSL, not LTL. Both Spot's ltlfilt ``--ltl`` and
+    # logic_asts ``syntax="ltl"`` reject any LTL formula containing it, so
+    # such inputs carry no differential signal and are skipped.
     ;
     |
     # A Boolean-constant digit (``0`` / ``1``) immediately adjacent to a word
@@ -114,6 +114,94 @@ _LTL_GRAMMAR = Lark.open_from_package(
 
 
 _MAX_FORMULA_LEN = 64
+
+
+def assert_spot_accepts_psl(*formulas: str) -> None:
+    """Assert that Spot accepts every formula as a valid PSL formula.
+
+    Unlike :func:`assert_spot_accepts`, this does not require the result to
+    be a pure LTL formula -- SERE and PSL formulas are also accepted. SERE
+    inputs that Spot's top-level ``formula()`` parser rejects on their own
+    are wrapped in ``{...}!`` for the Spot check.
+    """
+    if HAS_SPOT == "lib":
+        import spot
+
+        for formula in formulas:
+            try:
+                spot.formula(formula)
+            except Exception:
+                # Spot may reject a bare SERE expression at the top level;
+                # wrap it in ``{...}!`` to coerce it into a PSL formula.
+                try:
+                    spot.formula("{" + formula + "}!")
+                except Exception as e:
+                    raise AssertionError(f"Failed to parse formula `{formula}` (also tried wrapping)") from e
+
+    elif HAS_SPOT == "cli":
+        for formula in formulas:
+            for candidate in (formula, "{" + formula + "}!"):
+                proc = subprocess.run(
+                    ["ltlfilt", "--count", "--formula", candidate],
+                    capture_output=True,
+                    text=True,
+                )
+                if proc.returncode == 0 and int(proc.stdout) == 1:
+                    break
+            else:
+                raise AssertionError(f"Spot rejected `{formula}` (also tried wrapping)")
+
+
+SERE_INPUTS: list[str] = [
+    "a[*]",
+    "a[+]",
+    "a[*2..5]",
+    "a ; b ; c",
+    "a : b",
+    "a && b",
+    "a | b",
+]
+
+PSL_INPUTS: list[str] = [
+    "{a;b}[]-> c",
+    "{a;b}<>-> F c",
+    "{a;b}!",
+    "!{a;b}",
+    "{a}[]=> b",
+]
+
+
+class TestSpotSerePsl:
+    """Concrete spot-compatibility checks for SERE and PSL inputs."""
+
+    @pytest.mark.parametrize("formula", SERE_INPUTS)
+    def test_sere_parses(self, formula: str) -> None:
+        # logic_asts must accept the input under the ``sere`` dialect.
+        logic_asts.parse_expr(formula, syntax="sere")
+
+    @pytest.mark.parametrize("formula", SERE_INPUTS)
+    def test_sere_spot_accepts(self, formula: str) -> None:
+        assert_spot_accepts_psl(formula)
+
+    @pytest.mark.parametrize("formula", SERE_INPUTS)
+    def test_sere_roundtrip(self, formula: str) -> None:
+        expr = logic_asts.parse_expr(formula, syntax="sere")
+        reparsed = logic_asts.parse_expr(str(expr), syntax="sere")
+        assert expr == reparsed
+
+    @pytest.mark.parametrize("formula", PSL_INPUTS)
+    def test_psl_parses(self, formula: str) -> None:
+        logic_asts.parse_expr(formula, syntax="psl")
+
+    @pytest.mark.parametrize("formula", PSL_INPUTS)
+    def test_psl_spot_accepts(self, formula: str) -> None:
+        assert_spot_accepts_psl(formula)
+
+    @pytest.mark.parametrize("formula", PSL_INPUTS)
+    def test_psl_roundtrip(self, formula: str) -> None:
+        expr = logic_asts.parse_expr(formula, syntax="psl")
+        reparsed = logic_asts.parse_expr(str(expr), syntax="psl")
+        assert expr == reparsed
 
 
 @settings(

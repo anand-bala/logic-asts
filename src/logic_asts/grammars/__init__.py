@@ -15,13 +15,20 @@ from logic_asts.ltl import (
     Eventually,
     Next,
     Release,
-    Sequence,
     StrongNext,
     StrongRelease,
     TimeInterval,
     Until,
     WeakUntil,
 )
+from logic_asts.psl import (
+    NegStrongClosure,
+    StrongClosure,
+    SuffixImpliesExist,
+    SuffixImpliesUniv,
+    WeakClosure,
+)
+from logic_asts.sere import Alt, Concat, Fusion, Inter, Repeat
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
@@ -116,10 +123,6 @@ class LtlTransform(Transformer[Token, Expr]):
     def mul(self, lhs: Expr, rhs: Expr) -> Expr:
         return lhs & rhs
 
-    @v_args(inline=False)
-    def sequence(self, args: list[Expr]) -> Expr:
-        return Sequence(tuple(args))
-
     def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
         interval = interval or TimeInterval()
         return Until(lhs, rhs, interval)
@@ -200,6 +203,66 @@ class LtlTransform(Transformer[Token, Expr]):
     def time_interval_strong(self, start: int | None, end: int | None) -> tuple[TimeInterval, bool]:
         # Return (TimeInterval, strong=True)
         return (TimeInterval(start, end), True)
+
+    def INT(self, value: Token | int) -> int:  # noqa: N802
+        return int(value)
+
+
+@typing.final
+@v_args(inline=True)
+class SereTransform(Transformer[Token, Expr]):
+    def start(self, expr: Expr) -> Expr:
+        return expr
+
+    def bool_atom(self, expr: Expr) -> Expr:
+        return expr
+
+    @v_args(inline=False)
+    def alt(self, args: list[Expr]) -> Expr:
+        return Alt(tuple(args))
+
+    @v_args(inline=False)
+    def inter(self, args: list[Expr]) -> Expr:
+        return Inter(tuple(args))
+
+    @v_args(inline=False)
+    def concat(self, args: list[Expr]) -> Expr:
+        return Concat(tuple(args))
+
+    @v_args(inline=False)
+    def fusion(self, args: list[Expr]) -> Expr:
+        return Fusion(tuple(args))
+
+    def repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+        low, high = suffix
+        return Repeat(arg, low, high)
+
+    def star_unbounded(self) -> tuple[int | None, int | None]:
+        return (0, None)
+
+    def plus_unbounded(self) -> tuple[int | None, int | None]:
+        return (1, None)
+
+    def bare_star(self) -> tuple[int | None, int | None]:
+        return (0, None)
+
+    def bare_plus(self) -> tuple[int | None, int | None]:
+        return (1, None)
+
+    def star_range(self, rng: tuple[int | None, int | None]) -> tuple[int | None, int | None]:
+        return rng
+
+    def range_point(self, n: int) -> tuple[int | None, int | None]:
+        return (n, n)
+
+    def range_closed(self, lo: int, hi: int) -> tuple[int | None, int | None]:
+        return (lo, hi)
+
+    def range_open_high(self, lo: int) -> tuple[int | None, int | None]:
+        return (lo, None)
+
+    def range_open_low(self, hi: int) -> tuple[int | None, int | None]:
+        return (0, hi)
 
     def INT(self, value: Token | int) -> int:  # noqa: N802
         return int(value)
@@ -347,6 +410,36 @@ class StlGoTransform(Transformer[Token, Expr]):
         return int(value)
 
 
+@typing.final
+@v_args(inline=True)
+class PslTransform(Transformer[Token, Expr]):
+    def start(self, expr: Expr) -> Expr:
+        return expr
+
+    def suffix_implies_univ(self, sere: Expr, formula: Expr) -> Expr:
+        return SuffixImpliesUniv(sere, formula)
+
+    def suffix_implies_exist(self, sere: Expr, formula: Expr) -> Expr:
+        return SuffixImpliesExist(sere, formula)
+
+    def suffix_implies_univ_then(self, sere: Expr, formula: Expr) -> Expr:
+        # {r}[]=> f  ==  {r ; 1}[]-> f
+        return SuffixImpliesUniv(Concat((sere, Literal(True))), formula)
+
+    def suffix_implies_exist_then(self, sere: Expr, formula: Expr) -> Expr:
+        # {r}<>=> f  ==  {r ; 1}<>-> f
+        return SuffixImpliesExist(Concat((sere, Literal(True))), formula)
+
+    def weak_closure(self, sere: Expr) -> Expr:
+        return WeakClosure(sere)
+
+    def strong_closure(self, sere: Expr) -> Expr:
+        return StrongClosure(sere)
+
+    def neg_strong_closure(self, sere: Expr) -> Expr:
+        return NegStrongClosure(sere)
+
+
 @enum.unique
 class SupportedGrammars(enum.Enum):
     BASE = "base"
@@ -371,6 +464,18 @@ class SupportedGrammars(enum.Enum):
     """Spatio-Temporal Logic with Graph Operators.
 
     .. seealso:: :mod:`logic_asts.stl_go`
+    """
+
+    SERE = "sere"
+    """Sequential Extended Regular Expressions.
+
+    .. seealso:: :mod:`logic_asts.sere`
+    """
+
+    PSL = "psl"
+    """Property Specification Logic.
+
+    .. seealso:: :mod:`logic_asts.psl`
     """
 
     def get_transformer(self) -> Transformer[Token, Expr]:
@@ -399,6 +504,23 @@ class SupportedGrammars(enum.Enum):
                     StlGoTransform(),
                     ltl=merge_transformers(
                         LtlTransform(),
+                        base=BaseTransform(),
+                    ),
+                )
+            case "sere":
+                transformer = merge_transformers(
+                    SereTransform(),
+                    base=BaseTransform(),
+                )
+            case "psl":
+                transformer = merge_transformers(
+                    PslTransform(),
+                    ltl=merge_transformers(
+                        LtlTransform(),
+                        base=BaseTransform(),
+                    ),
+                    sere=merge_transformers(
+                        SereTransform(),
                         base=BaseTransform(),
                     ),
                 )

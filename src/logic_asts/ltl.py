@@ -723,57 +723,8 @@ class StrongRelease(Expr):
         return max(self.lhs.horizon() + end - 1, self.rhs.horizon() + end)
 
 
-@final
-@frozen
-class Sequence(Expr):
-    r"""Sequence operator: ``phi_1 ; phi_2 ; ... ; phi_n``.
-
-    Asserts that each formula holds at successive time steps. The n-ary form
-    right-folds into nested ``phi_1 & X(phi_2 & X(... & X(phi_n)...))``.
-
-    Attributes:
-        args: Two or more sub-formulas, evaluated at times 0, 1, ..., n-1.
-
-    Examples:
-        >>> from logic_asts.base import Variable
-        >>> p = Variable("p")
-        >>> q = Variable("q")
-        >>> r = Variable("r")
-        >>> print(Sequence((p, q, r)))
-        (p ; q ; r)
-
-    Semantics:
-        phi1 ; phi2 ; phi3  is equivalent to  phi1 & X(phi2 & X(phi3))
-    """
-
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
-
-    @override
-    def __str__(self) -> str:
-        return "(" + " ; ".join(str(a) for a in self.args) + ")"
-
-    @override
-    def expand(self) -> Expr:
-        # Right-fold: a ; b ; c  ==>  a & Next(b & Next(c))
-        result = self.args[-1].expand()
-        for arg in reversed(self.args[:-1]):
-            result = arg.expand() & Next(result)
-        return result
-
-    @override
-    def children(self) -> Iterator[Expr]:
-        yield from self.args
-
-    @override
-    def horizon(self) -> int | float:
-        # args[i] must hold at time i, so its contribution is args[i].horizon() + i
-        return max(arg.horizon() + i for i, arg in enumerate(self.args))
-
-
 Var = TypeVar("Var")
-LTLExpr: TypeAlias = (
-    BaseExpr[Var] | Next | StrongNext | Always | Eventually | Until | WeakUntil | Release | StrongRelease | Sequence
-)
+LTLExpr: TypeAlias = BaseExpr[Var] | Next | StrongNext | Always | Eventually | Until | WeakUntil | Release | StrongRelease
 """LTL expression types.
 
 Use :func:`logic_asts.ltl_expr_iter` to iterate over the subtree of an
@@ -809,7 +760,6 @@ def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
                 WeakUntil,
                 Release,
                 StrongRelease,
-                Sequence,
                 Implies,
                 Equiv,
                 Xor,
@@ -835,6 +785,5 @@ __all__ = [
     "WeakUntil",
     "Release",
     "StrongRelease",
-    "Sequence",
     "ltl_expr_iter",
 ]

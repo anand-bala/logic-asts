@@ -1,0 +1,20 @@
+%import .ltl (expr, unary)
+%import .sere (sere)
+
+start: pformula
+
+?pformula: expr
+
+// Allow closures and bindings as atoms inside LTL operators
+// (so G {a} and G {r}[]-> f parse). Putting these in ?unary makes them
+// reachable both as top-level pformula (via expr) and under LTL operators.
+%extend ?unary: "!" "{" sere "}"               -> neg_strong_closure
+              | "{" sere "}" "[]->"  unary     -> suffix_implies_univ
+              | "{" sere "}" "<>->"  unary     -> suffix_implies_exist
+              | "{" sere "}" "[]=>"  unary     -> suffix_implies_univ_then
+              | "{" sere "}" "<>=>"  unary     -> suffix_implies_exist_then
+              | "{" sere "}" "!"               -> strong_closure
+              | "{" sere "}"                   -> weak_closure
+
+%import common.WS
+%ignore WS

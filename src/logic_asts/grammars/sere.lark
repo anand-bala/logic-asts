@@ -1,0 +1,30 @@
+%import .base (unary)
+
+start: sere
+
+?sere: alt
+?alt: inter ("|" inter)+ -> alt | inter
+?inter: concat ("&&" concat)+ -> inter | concat
+?concat: fusion (";" fusion)+ -> concat | fusion
+?fusion: rep (":" rep)+ -> fusion | rep
+?rep: atom repeat_suffix -> repeat | atom
+?atom: "{" sere "}"
+     | "(" sere ")"
+     | bool_atom
+
+bool_atom: unary
+
+repeat_suffix: "[*" range "]" -> star_range
+             | "[*" "]"       -> star_unbounded
+             | "[+]"          -> plus_unbounded
+             | "*"            -> bare_star
+             | "+"            -> bare_plus
+
+range: INT             -> range_point
+     | INT ".." INT    -> range_closed
+     | INT ".."        -> range_open_high
+     | ".." INT        -> range_open_low
+
+%import common.INT
+%import common.WS
+%ignore WS
