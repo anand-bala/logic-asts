@@ -46,6 +46,21 @@ SPOT_DIVERGENT_PATTERN = re.compile(
     # such strings are not valid for differential testing, so skip them.
     (?<![A-Za-z0-9_])[01][A-Za-z0-9_]
     |
+    # The LTL binary operators ``U`` / ``W`` / ``R`` / ``M`` carry a negative
+    # lookahead ``(?!\d)`` so they refuse to lex when immediately followed by
+    # a digit (e.g. ``U1``, ``W2``). Hypothesis generates these from the
+    # grammar rules and they slip past the lexer constraint. Spot also
+    # rejects them (``unexpected atomic proposition``), so they carry no
+    # differential signal.
+    (?<![A-Za-z0-9_])[UWRM]\d
+    |
+    # A time interval with no lower bound (``G[,N]``, ``G[,]``, ``F[,]``,
+    # etc.) is accepted by logic_asts (the lower bound is treated as 0) but
+    # rejected by Spot, which requires an explicit lower bound. Round-tripping
+    # the parsed expression typically produces a Spot-compatible form, but
+    # the raw input differs, so skip these for the differential check.
+    \[\s*,
+    |
     # Lark's ``common.WS`` includes form-feed (``\x0c``) and treats it as
     # ignorable whitespace, so logic_asts silently accepts it inside formulas;
     # Spot's tokenizer does not, and rejects the input as a syntax error.

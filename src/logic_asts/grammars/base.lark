@@ -7,7 +7,7 @@ start: expr
           | xor_expr "<->" impl_expr -> equiv
 
 ?xor_expr: sum
-         | xor_expr ("^"|"xor") sum  -> xor
+         | xor_expr ("^"|_XOR_OP) sum  -> xor
 
 ?sum: product
     | sum ("|"|"||") product         -> add
@@ -21,6 +21,8 @@ start: expr
 ?atom: (TRUE | FALSE)
      | IDENTIFIER
      | "(" expr ")"
+
+_XOR_OP: /xor(?!\d)/
 
 // Priority .2 so these out-rank inline single-letter operator keywords like
 // "F" (eventually) and "G" (globally) defined in extending grammars; the

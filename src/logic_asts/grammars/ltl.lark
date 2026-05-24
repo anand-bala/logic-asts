@@ -14,10 +14,10 @@ start: expr
 // Extended binary operations
 // Support U (until), W (weak until), R (release), M (strong release)
 ?ex_binary: unary
-         | ex_binary "U" [time_interval] unary -> until
-         | ex_binary "W" [time_interval] unary -> weak_until
-         | ex_binary "R" [time_interval] unary -> release
-         | ex_binary "M" [time_interval] unary -> strong_release
+         | ex_binary _U_OP [time_interval] unary -> until
+         | ex_binary _W_OP [time_interval] unary -> weak_until
+         | ex_binary _R_OP [time_interval] unary -> release
+         | ex_binary _M_OP [time_interval] unary -> strong_release
 
 // Negative lookahead on (?!\d) implements Spot's atomic-proposition rule 3:
 // an alphanumeric run starting with one of F, G, or X whose second character
@@ -31,6 +31,10 @@ start: expr
 _G_OP: /G(?!\d)/
 _F_OP: /F(?!\d)/
 _X_OP: /X(?!\d)/
+_U_OP: /U(?!\d)/
+_W_OP: /W(?!\d)/
+_R_OP: /R(?!\d)/
+_M_OP: /M(?!\d)/
 
 // Next modifier: empty (weak), [n] (weak n-steps), [!] (strong), [n!] (strong n-steps)
 ?next_modifier: "[" INT "!" "]"  -> strong_step
