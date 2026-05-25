@@ -34,6 +34,14 @@ def check_weight_start(instance: Any, attribute: attrs.Attribute[None], value: f
         raise ValueError(f"{attribute.name} [a,b] cannot have a > b")
 
 
+def _convert_next_step(value: int | None) -> int | None:
+    """Convert the `steps` parameter for Next and StrongNext into `None` if equal to `1`."""
+    if value is None or value == 1:
+        return None
+    else:
+        return value
+
+
 def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -> logic.Expr:
     """Use the Spot NNF/negation identities for all supported logics.
 

@@ -62,7 +62,7 @@ from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.spec import Expr, ExprVisitor
-from logic_asts.utils import check_positive, check_start
+from logic_asts.utils import _convert_next_step, check_positive, check_start
 
 
 @final
@@ -206,7 +206,7 @@ class Next(Expr):
     """
 
     arg: Expr
-    steps: int | None = attrs.field(default=None)
+    steps: int | None = attrs.field(default=None, converter=_convert_next_step)
 
     @override
     def __str__(self) -> str:
@@ -272,7 +272,7 @@ class StrongNext(Expr):
     """
 
     arg: Expr
-    steps: int | None = attrs.field(default=None)
+    steps: int | None = attrs.field(default=None, converter=_convert_next_step)
 
     @override
     def __str__(self) -> str:
