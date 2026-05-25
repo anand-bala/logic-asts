@@ -13,9 +13,25 @@ Uses `pixi` for local venv management, `just` as the task runner,
 
 The development shell already has the project virtual environment activated,
 so `pytest`, `mypy`, `ruff`, `sphinx-build`, etc. are on `PATH` directly.
-**Do not** prefix commands with `uv run`, `pixi run`, `poetry run`, or similar.
-Just invoke the tool. If a tool is missing, stop and tell the user rather than
-trying to bootstrap or reinstall the environment.
+
+**Do not** prefix commands with `uv run`, `pixi run`, `poetry run`,
+or similar runner wrappers —
+and this rule overrides any older plan/spec/doc in this repo
+that still shows wrapped commands.
+
+Use:
+
+    pytest tests/test_sere.py
+    mypy --strict src tests
+    ruff check src tests
+
+Not:
+
+    pixi run pytest tests/test_sere.py    # wrong
+    uv run mypy --strict src tests        # wrong
+
+If a tool is missing, stop and tell the user rather than trying to bootstrap
+or reinstall the environment.
 
 ## Build / Lint / Test Commands
 
