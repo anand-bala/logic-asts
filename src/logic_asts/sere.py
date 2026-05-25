@@ -12,11 +12,21 @@ Operators implemented:
     - Alt    ``|`` (alternation, distinct from Boolean Or at the SERE level)
     - Inter    ``&&`` (length-matching intersection)
     - NLMInter ``&``  (non-length-matching intersection)
+    - Complement ``~`` (SERE complement; extension beyond Spot)
+    - FirstMatch ``first_match(r)`` (SVA-derived; matches Spot's surface syntax)
     - Repeat ``[*]``, ``[+]``, ``[*i]``, ``[*i..j]``, ``[*i..]``
 
 Out of scope (not supported): delay operators ``##i`` / ``##[i..j]``,
 goto / equal / non-consecutive repetitions ``[->i..j]``, ``[=i..j]``,
-``[:*i..j]``, ``[:+]``, and ``first_match``.
+``[:*i..j]``, ``[:+]``.
+
+Extensions beyond Spot: ``~`` at the SERE level denotes SERE complement
+(``L(~r) = Sigma* \ L(r)``), not Boolean negation. ``!`` is the sole
+Boolean negation glyph across every grammar in this package. Spot's
+SERE grammar has no complement operator, so any string emitted by this
+module containing ``~`` will be rejected by Spot. ``first_match``
+matches Spot's surface syntax, but combinations with ``~`` remain
+Spot-incompatible.
 """
 
 from __future__ import annotations
@@ -244,8 +254,83 @@ class NLMInter(Expr):
         return max(a.horizon() for a in self.args)
 
 
+@final
+@frozen
+class Complement(Expr):
+    r"""SERE complement: ``~r``.
+
+    Language: ``Sigma* \ L(r)``. Distinct from Boolean negation on a
+    leaf (``!a``), which yields a single-letter language. ``~`` binds
+    tighter than every other SERE operator (``[*]``, ``;``, ``:``,
+    ``&``, ``&&``, ``|``).
+
+    Extension beyond Spot: Spot's SERE grammar does not include a
+    complement operator. See the module docstring.
+    """
+
+    arg: Expr
+
+    @override
+    def __str__(self) -> str:
+        inner = self.arg
+        if isinstance(inner, (Concat, Fusion, Alt, Inter, NLMInter, Repeat)):
+            # Brace-group operands that would otherwise create round-trip
+            # ambiguity. Multi-operator nodes already wrap themselves in
+            # "(...)" so we strip those and re-wrap in braces. ``Repeat``
+            # carries a postfix suffix (``[*]`` etc.) that would otherwise
+            # bind to the outer ``~`` and re-parse as ``Repeat(Complement)``.
+            body = str(inner)
+            if body.startswith("(") and body.endswith(")"):
+                body = body[1:-1]
+            return f"~{{{body}}}"
+        return f"~{inner}"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def expand(self) -> Expr:
+        return Complement(self.arg.expand())
+
+    @override
+    def horizon(self) -> int | float:
+        return math.inf
+
+
+@final
+@frozen
+class FirstMatch(Expr):
+    r"""SERE first-match restriction: ``first_match(r)``.
+
+    Language: words ``w`` in ``L(r)`` whose strictly shorter prefixes
+    are all outside ``L(r)``. Matches Spot's ``first_match`` operator.
+    """
+
+    arg: Expr
+
+    @override
+    def __str__(self) -> str:
+        body = str(self.arg)
+        if body.startswith("(") and body.endswith(")"):
+            body = body[1:-1]
+        return f"first_match({body})"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def expand(self) -> Expr:
+        return FirstMatch(self.arg.expand())
+
+    @override
+    def horizon(self) -> int | float:
+        return self.arg.horizon()
+
+
 Var = TypeVar("Var")
-SEREExpr: TypeAlias = BoolExpr[Var] | Concat | Fusion | Alt | Inter | NLMInter | Repeat
+SEREExpr: TypeAlias = BoolExpr[Var] | Concat | Fusion | Alt | Inter | NLMInter | Complement | FirstMatch | Repeat
 """Union of all SERE expression node types."""
 
 
@@ -259,6 +344,8 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
                 Alt,
                 Inter,
                 NLMInter,
+                Complement,
+                FirstMatch,
                 Repeat,
                 Implies,
                 Equiv,
@@ -281,6 +368,8 @@ __all__ = [
     "Alt",
     "Inter",
     "NLMInter",
+    "Complement",
+    "FirstMatch",
     "Repeat",
     "sere_expr_iter",
 ]

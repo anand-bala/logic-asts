@@ -123,7 +123,7 @@ def test_is_psl_expr_guard() -> None:
 
 def test_bool_accepted_by_sere_and_psl() -> None:
     """A pure Boolean tree should be accepted by both is_sere_expr and is_psl_expr."""
-    prop: object = logic_asts.parse_expr("(p & q) | ~r", syntax="base")
+    prop: object = logic_asts.parse_expr("(p & q) | !r", syntax="base")
     assert logic_asts.is_sere_expr(prop, str)
     assert logic_asts.is_psl_expr(prop, str)
 

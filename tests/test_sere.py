@@ -5,7 +5,7 @@ import math
 import pytest
 
 from logic_asts.base import Variable
-from logic_asts.sere import Alt, Concat, Fusion, Inter, NLMInter, Repeat
+from logic_asts.sere import Alt, Complement, Concat, FirstMatch, Fusion, Inter, NLMInter, Repeat
 
 
 class TestRepeat:
@@ -172,6 +172,74 @@ def test_sere_expr_iter_rejects_non_sere_node() -> None:
         list(sere_expr_iter(bad))
 
 
+class TestComplement:
+    def test_str_atom(self) -> None:
+        a = Variable("a")
+        assert str(Complement(a)) == "~a"
+
+    def test_str_double(self) -> None:
+        a = Variable("a")
+        assert str(Complement(Complement(a))) == "~~a"
+
+    def test_str_braced_compound(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        assert str(Complement(Concat((a, b)))) == "~{a ; b}"
+
+    def test_str_with_repeat_around(self) -> None:
+        a = Variable("a")
+        # ~ binds tighter than [*]: Repeat(Complement(a), ...) -> "~a[*]"
+        assert str(Repeat(Complement(a), 0, None)) == "~a[*]"
+
+    def test_str_complement_around_repeat(self) -> None:
+        a = Variable("a")
+        # Complement(Repeat(...)) must brace-wrap so the suffix doesn't
+        # rebind to the outer ~ on re-parse: ~{a[*]} not ~a[*].
+        assert str(Complement(Repeat(a, 0, None))) == "~{a[*]}"
+
+    def test_horizon_is_inf(self) -> None:
+        a = Variable("a")
+        assert math.isinf(Complement(a).horizon())
+
+    def test_children_yields_arg(self) -> None:
+        a = Variable("a")
+        c = Complement(a)
+        assert list(c.children()) == [a]
+
+    def test_expand_recurses(self) -> None:
+        a, b, c = Variable("a"), Variable("b"), Variable("c")
+        # Inner NLMInter flattens via NLMInter.expand(), wrapped by Complement.
+        inner = NLMInter((NLMInter((a, b)), c))
+        assert Complement(inner).expand() == Complement(NLMInter((a, b, c)))
+
+
+class TestFirstMatch:
+    def test_str_atom(self) -> None:
+        a = Variable("a")
+        assert str(FirstMatch(a)) == "first_match(a)"
+
+    def test_str_compound(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        assert str(FirstMatch(Concat((a, b)))) == "first_match(a ; b)"
+
+    def test_str_nested_with_complement(self) -> None:
+        a = Variable("a")
+        assert str(FirstMatch(Complement(a))) == "first_match(~a)"
+
+    def test_horizon_propagates(self) -> None:
+        a = Variable("a")
+        assert FirstMatch(Repeat(a, 0, 3)).horizon() == Repeat(a, 0, 3).horizon()
+
+    def test_children_yields_arg(self) -> None:
+        a = Variable("a")
+        node = FirstMatch(a)
+        assert list(node.children()) == [a]
+
+    def test_expand_recurses(self) -> None:
+        a, b, c = Variable("a"), Variable("b"), Variable("c")
+        inner = NLMInter((NLMInter((a, b)), c))
+        assert FirstMatch(inner).expand() == FirstMatch(NLMInter((a, b, c)))
+
+
 class TestSereParser:
     def test_parse_atom(self) -> None:
         from logic_asts import parse_expr
@@ -278,3 +346,85 @@ class TestIsSereExpr:
 
         expr = Eventually(Variable("a"))
         assert not is_sere_expr(expr)
+
+
+class TestParseComplement:
+    def test_parse_complement_atom(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~a", syntax="sere")
+        assert expr == Complement(Variable("a"))
+
+    def test_parse_double_complement(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~~a", syntax="sere")
+        assert expr == Complement(Complement(Variable("a")))
+
+    def test_parse_complement_brace_compound(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~{a;b}", syntax="sere")
+        assert expr == Complement(Concat((Variable("a"), Variable("b"))))
+
+    def test_complement_binds_tighter_than_concat(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~a;b", syntax="sere")
+        assert expr == Concat((Complement(Variable("a")), Variable("b")))
+
+    def test_complement_binds_tighter_than_repeat(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~a[*]", syntax="sere")
+        assert expr == Repeat(Complement(Variable("a")), 0, None)
+
+    def test_complement_binds_tighter_than_alt(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~a | b", syntax="sere")
+        assert expr == Alt((Complement(Variable("a")), Variable("b")))
+
+
+def test_tilde_rejected_as_boolean_negation() -> None:
+    """After grammar change, ``~`` is SERE-only; Boolean ``~`` is rejected."""
+    import pytest as _pytest
+    from lark.exceptions import LarkError
+
+    from logic_asts import parse_expr
+
+    with _pytest.raises(LarkError):
+        parse_expr("~a", syntax="base")
+
+
+class TestParseFirstMatch:
+    def test_parse_first_match_atom(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("first_match(a)", syntax="sere")
+        assert expr == FirstMatch(Variable("a"))
+
+    def test_parse_first_match_compound(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("first_match(a;b)", syntax="sere")
+        assert expr == FirstMatch(Concat((Variable("a"), Variable("b"))))
+
+    def test_first_match_inside_complement(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("~first_match(a)", syntax="sere")
+        assert expr == Complement(FirstMatch(Variable("a")))
+
+    def test_complement_inside_first_match(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("first_match(~a)", syntax="sere")
+        assert expr == FirstMatch(Complement(Variable("a")))
+
+    def test_first_match_with_repeat(self) -> None:
+        from logic_asts import parse_expr
+
+        # first_match(...) is an atom, so it accepts a repeat suffix.
+        expr = parse_expr("first_match(a)[*]", syntax="sere")
+        assert expr == Repeat(FirstMatch(Variable("a")), 0, None)

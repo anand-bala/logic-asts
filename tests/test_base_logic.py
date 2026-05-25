@@ -454,14 +454,14 @@ class TestParsing:
         "expr_str",
         [
             "p",
-            "~p",
+            "!p",
             "p & q",
             "p | q",
             "p -> q",
             "p <-> q",
             "p ^ q",
             "(p & q) | r",
-            "~(p & q)",
+            "!(p & q)",
             "((p | q) & r) | s",
         ],
     )

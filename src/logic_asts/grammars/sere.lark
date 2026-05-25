@@ -8,9 +8,11 @@ start: sere
 ?inter: concat ("&&" concat)+ -> inter | concat
 ?concat: fusion (";" fusion)+ -> concat | fusion
 ?fusion: rep (":" rep)+ -> fusion | rep
-?rep: atom repeat_suffix -> repeat | atom
+?rep: complement repeat_suffix -> repeat | complement
+?complement: "~" complement -> complement | atom
 ?atom: "{" sere "}"
      | "(" sere ")"
+     | "first_match" "(" sere ")" -> first_match
      | bool_atom
 
 bool_atom: unary

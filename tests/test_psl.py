@@ -145,3 +145,26 @@ def test_psl_strong_closure_over_nlm_inter() -> None:
 
     expr = parse_expr("{a & b}!", syntax="psl")
     assert parse_expr(str(expr), syntax="psl") == expr
+
+
+class TestPslComplementAndFirstMatch:
+    """PSL reuses the SERE grammar wholesale, so ~ and first_match should
+    parse inside ``{...}``-wrapped PSL forms."""
+
+    def test_psl_strong_closure_over_complement(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{~a}!", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr
+
+    def test_psl_strong_closure_over_first_match(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{first_match(a;b)}!", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr
+
+    def test_psl_suffix_implies_with_complement(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{~a;b}[]-> c", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr

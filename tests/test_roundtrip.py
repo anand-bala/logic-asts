@@ -167,6 +167,28 @@ def test_sere_nlm_inter_roundtrip(src: str) -> None:
     assert parse_expr(str(expr), syntax="sere") == expr
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        "~a",
+        "~~a",
+        "~{a;b}",
+        "~a[*]",
+        "~a | b",
+        "first_match(a)",
+        "first_match(a;b)",
+        "first_match(~a)",
+        "~first_match(a)",
+        "first_match(a)[*]",
+        "(a & b) | ~c",
+        "{first_match(a;b) && ~c}",
+    ],
+)
+def test_sere_complement_and_first_match_roundtrip(src: str) -> None:
+    expr = parse_expr(src, syntax="sere")
+    assert parse_expr(str(expr), syntax="sere") == expr
+
+
 def psl_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
     sere = sere_strategy(max_leaves=4)
     formulas = _bool_atom_strategy()

@@ -343,7 +343,7 @@ class TestLTLParsing:
 
     def test_parse_complex_ltl_formula(self) -> None:
         """Test parsing complex LTL formula."""
-        expr = logic_asts.parse_expr("(request -> F response) & G ~error", syntax="ltl")
+        expr = logic_asts.parse_expr("(request -> F response) & G !error", syntax="ltl")
         assert isinstance(expr, And)
 
     def test_parse_request_response_pattern(self) -> None:
@@ -359,7 +359,7 @@ class TestLTLParsing:
 
     def test_parse_safety_pattern(self) -> None:
         """Test parsing safety pattern."""
-        expr = logic_asts.parse_expr("G ~error", syntax="ltl")
+        expr = logic_asts.parse_expr("G !error", syntax="ltl")
         assert isinstance(expr, ltl.Always)
         assert isinstance(expr.arg, Not)
 

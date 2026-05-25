@@ -347,7 +347,7 @@ class TestSTRELParsing:
 
     def test_parse_spatial_with_negation(self) -> None:
         """Test parsing spatial with negation."""
-        expr = logic_asts.parse_expr("everywhere[0,5] ~obstacle", syntax="strel")
+        expr = logic_asts.parse_expr("everywhere[0,5] !obstacle", syntax="strel")
         assert isinstance(expr, strel.Everywhere)
 
     def test_parse_spatial_temporal_integration(self) -> None:
@@ -370,13 +370,13 @@ class TestSTRELParsing:
 
     def test_parse_everywhere_safety_pattern(self) -> None:
         """Test parsing everywhere safety pattern."""
-        expr = logic_asts.parse_expr("G everywhere[0,5] ~obstacle", syntax="strel")
+        expr = logic_asts.parse_expr("G everywhere[0,5] !obstacle", syntax="strel")
         assert isinstance(expr, ltl.Always)
         assert isinstance(expr.arg, strel.Everywhere)
 
     def test_parse_complex_spatial_temporal(self) -> None:
         """Test parsing complex spatial-temporal formula."""
-        expr = logic_asts.parse_expr("(G ~obstacle) & ((somewhere[0,2] groundstation) U goal)", syntax="strel")
+        expr = logic_asts.parse_expr("(G !obstacle) & ((somewhere[0,2] groundstation) U goal)", syntax="strel")
         assert isinstance(expr, And)
 
     def test_parse_reach_from_start_to_goal(self) -> None:

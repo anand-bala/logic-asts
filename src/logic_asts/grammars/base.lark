@@ -16,7 +16,7 @@ start: expr
         | product ("&"|"&&") unary   -> mul
 
 ?unary: atom
-      | ("!"|"~") unary              -> neg
+      | "!" unary                    -> neg
 
 ?atom: (TRUE | FALSE)
      | IDENTIFIER
