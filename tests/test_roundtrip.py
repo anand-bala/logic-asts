@@ -189,6 +189,33 @@ def test_sere_complement_and_first_match_roundtrip(src: str) -> None:
     assert parse_expr(str(expr), syntax="sere") == expr
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        "a[:*]",
+        "a[:+]",
+        "a[:*3]",
+        "a[:*2..5]",
+        "a[:*2..]",
+        "a[->]",
+        "a[->2]",
+        "a[->2..5]",
+        "a[->3..]",
+        "a[=]",
+        "a[=3]",
+        "a[=2..5]",
+        "a[=3..]",
+        "(a;b)[->2]",
+        "~a[=2]",
+        "first_match(a)[:+]",
+        "{a[:*3] && b[->2]}",
+    ],
+)
+def test_sere_extended_repetition_roundtrip(src: str) -> None:
+    expr = parse_expr(src, syntax="sere")
+    assert parse_expr(str(expr), syntax="sere") == expr
+
+
 def psl_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
     sere = sere_strategy(max_leaves=4)
     formulas = _bool_atom_strategy()

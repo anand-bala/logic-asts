@@ -8,7 +8,11 @@ start: sere
 ?inter: concat ("&&" concat)+ -> inter | concat
 ?concat: fusion (";" fusion)+ -> concat | fusion
 ?fusion: rep (":" rep)+ -> fusion | rep
-?rep: complement repeat_suffix -> repeat | complement
+?rep: complement star_repeat_suffix    -> repeat
+    | complement fusion_repeat_suffix  -> fusion_repeat
+    | complement goto_repeat_suffix    -> goto_repeat
+    | complement equal_repeat_suffix   -> equal_repeat
+    | complement
 ?complement: "~" complement -> complement | atom
 ?atom: "{" sere "}"
      | "(" sere ")"
@@ -17,11 +21,21 @@ start: sere
 
 bool_atom: unary
 
-repeat_suffix: "[*" range "]" -> star_range
-             | "[*" "]"       -> star_unbounded
-             | "[+]"          -> plus_unbounded
-             | "*"            -> bare_star
-             | "+"            -> bare_plus
+star_repeat_suffix: "[*" range "]" -> star_range
+                  | "[*" "]"       -> star_unbounded
+                  | "[+]"          -> plus_unbounded
+                  | "*"            -> bare_star
+                  | "+"            -> bare_plus
+
+fusion_repeat_suffix: "[:*" range "]" -> star_range
+                    | "[:*" "]"       -> fusion_star_unbounded
+                    | "[:+]"          -> fusion_plus_unbounded
+
+goto_repeat_suffix: "[->" range "]" -> star_range
+                  | "[->" "]"       -> goto_unbounded_default
+
+equal_repeat_suffix: "[=" range "]" -> star_range
+                   | "[=" "]"       -> equal_unbounded_default
 
 range: INT             -> range_point
      | INT ".." INT    -> range_closed

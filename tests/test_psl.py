@@ -168,3 +168,25 @@ class TestPslComplementAndFirstMatch:
 
         expr = parse_expr("{~a;b}[]-> c", syntax="psl")
         assert parse_expr(str(expr), syntax="psl") == expr
+
+
+class TestPslExtendedRepetition:
+    """PSL reuses the SERE grammar; the new repeat suffixes must parse inside {...} forms."""
+
+    def test_psl_strong_closure_over_fusion_repeat(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{a[:*]}!", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr
+
+    def test_psl_strong_closure_over_goto_repeat(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{a[->2]}!", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr
+
+    def test_psl_suffix_implies_with_equal_repeat(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("{a[=1..3]}[]-> c", syntax="psl")
+        assert parse_expr(str(expr), syntax="psl") == expr

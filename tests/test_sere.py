@@ -5,7 +5,19 @@ import math
 import pytest
 
 from logic_asts.base import Variable
-from logic_asts.sere import Alt, Complement, Concat, FirstMatch, Fusion, Inter, NLMInter, Repeat
+from logic_asts.sere import (
+    Alt,
+    Complement,
+    Concat,
+    EqualRepeat,
+    FirstMatch,
+    Fusion,
+    FusionRepeat,
+    GotoRepeat,
+    Inter,
+    NLMInter,
+    Repeat,
+)
 
 
 class TestRepeat:
@@ -240,6 +252,183 @@ class TestFirstMatch:
         assert FirstMatch(inner).expand() == FirstMatch(NLMInter((a, b, c)))
 
 
+class TestFusionRepeat:
+    def test_str_star(self) -> None:
+        a = Variable("a")
+        assert str(FusionRepeat(a, 0, None)) == "a[:*]"
+
+    def test_str_plus(self) -> None:
+        a = Variable("a")
+        assert str(FusionRepeat(a, 1, None)) == "a[:+]"
+
+    def test_str_point(self) -> None:
+        a = Variable("a")
+        assert str(FusionRepeat(a, 3, 3)) == "a[:*3]"
+
+    def test_str_range(self) -> None:
+        a = Variable("a")
+        assert str(FusionRepeat(a, 2, 5)) == "a[:*2..5]"
+
+    def test_str_open_upper(self) -> None:
+        a = Variable("a")
+        assert str(FusionRepeat(a, 2, None)) == "a[:*2..]"
+
+    def test_low_must_be_non_negative(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            FusionRepeat(a, -1, None)
+
+    def test_low_must_be_le_high(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            FusionRepeat(a, 3, 2)
+
+    def test_children_yields_arg(self) -> None:
+        a = Variable("a")
+        assert list(FusionRepeat(a, 0, None).children()) == [a]
+
+    def test_horizon_unbounded(self) -> None:
+        a = Variable("a")
+        assert math.isinf(FusionRepeat(a, 0, None).horizon())
+
+    def test_horizon_bounded(self) -> None:
+        a = Variable("a")
+        assert FusionRepeat(a, 0, 5).horizon() == 5 * a.horizon()
+
+    def test_expand_zero_zero_is_true(self) -> None:
+        from logic_asts.base import Literal
+
+        a = Variable("a")
+        assert FusionRepeat(a, 0, 0).expand() == Literal(True)
+
+    def test_expand_one_one_collapses(self) -> None:
+        a = Variable("a")
+        assert FusionRepeat(a, 1, 1).expand() == a
+
+    def test_expand_point_k_uses_fusion(self) -> None:
+        a = Variable("a")
+        assert FusionRepeat(a, 3, 3).expand() == Fusion((a, a, a))
+
+    def test_expand_bounded_range_to_alt(self) -> None:
+        from logic_asts.base import Literal
+
+        a = Variable("a")
+        expanded = FusionRepeat(a, 0, 2).expand()
+        assert expanded == Alt((Literal(True), a, Fusion((a, a))))
+
+    def test_expand_unbounded_stays_primitive(self) -> None:
+        a = Variable("a")
+        node = FusionRepeat(a, 0, None)
+        assert node.expand() == node
+
+
+class TestGotoRepeat:
+    def test_str_default(self) -> None:
+        a = Variable("a")
+        # GotoRepeat(a, 1, 1) is the shorthand [->]
+        assert str(GotoRepeat(a, 1, 1)) == "a[->]"
+
+    def test_str_point(self) -> None:
+        a = Variable("a")
+        assert str(GotoRepeat(a, 2, 2)) == "a[->2]"
+
+    def test_str_range(self) -> None:
+        a = Variable("a")
+        assert str(GotoRepeat(a, 2, 5)) == "a[->2..5]"
+
+    def test_str_open_upper(self) -> None:
+        a = Variable("a")
+        assert str(GotoRepeat(a, 3, None)) == "a[->3..]"
+
+    def test_low_must_be_non_negative(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            GotoRepeat(a, -1, None)
+
+    def test_low_must_be_le_high(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            GotoRepeat(a, 3, 2)
+
+    def test_children_yields_arg(self) -> None:
+        a = Variable("a")
+        assert list(GotoRepeat(a, 1, 1).children()) == [a]
+
+    def test_horizon_is_inf(self) -> None:
+        a = Variable("a")
+        assert math.isinf(GotoRepeat(a, 1, 1).horizon())
+
+    def test_expand_boolean_operand(self) -> None:
+        # GotoRepeat(a, 1, 1).expand() builds:
+        #   Repeat(Concat((Repeat(Complement(a), 0, None), a)), 1, 1).expand()
+        # which collapses via Repeat's [*1..1] -> Concat((Repeat(Complement(a), 0, None), a))
+        a = Variable("a")
+        expanded = GotoRepeat(a, 1, 1).expand()
+        expected = Concat((Repeat(Complement(a), 0, None), a))
+        assert expanded == expected
+
+    def test_expand_sere_operand(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        inner = Concat((a, b))
+        expanded = GotoRepeat(inner, 2, 3).expand()
+        expected = Repeat(
+            Concat((Repeat(Complement(inner), 0, None), inner)),
+            2,
+            3,
+        )
+        assert expanded == expected
+
+
+class TestEqualRepeat:
+    def test_str_default(self) -> None:
+        a = Variable("a")
+        # EqualRepeat(a, 0, None) is the shorthand [=]
+        assert str(EqualRepeat(a, 0, None)) == "a[=]"
+
+    def test_str_point(self) -> None:
+        a = Variable("a")
+        assert str(EqualRepeat(a, 2, 2)) == "a[=2]"
+
+    def test_str_range(self) -> None:
+        a = Variable("a")
+        assert str(EqualRepeat(a, 2, 5)) == "a[=2..5]"
+
+    def test_str_open_upper(self) -> None:
+        a = Variable("a")
+        assert str(EqualRepeat(a, 3, None)) == "a[=3..]"
+
+    def test_low_must_be_non_negative(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            EqualRepeat(a, -1, None)
+
+    def test_low_must_be_le_high(self) -> None:
+        a = Variable("a")
+        with pytest.raises(ValueError):
+            EqualRepeat(a, 3, 2)
+
+    def test_children_yields_arg(self) -> None:
+        a = Variable("a")
+        assert list(EqualRepeat(a, 0, None).children()) == [a]
+
+    def test_horizon_is_inf(self) -> None:
+        a = Variable("a")
+        assert math.isinf(EqualRepeat(a, 0, None).horizon())
+
+    def test_expand_appends_complement_tail(self) -> None:
+        # EqualRepeat(a, 2, 3).expand() should produce:
+        #   Concat((GotoRepeat(a, 2, 3).expand(), Repeat(Complement(a), 0, None)))
+        # which (per the GotoRepeat operand-preserving expand) is:
+        #   Concat((Repeat(Concat((Repeat(Complement(a), 0, None), a)), 2, 3),
+        #           Repeat(Complement(a), 0, None)))
+        a = Variable("a")
+        expanded = EqualRepeat(a, 2, 3).expand()
+        goto_body = Repeat(Concat((Repeat(Complement(a), 0, None), a)), 2, 3)
+        tail = Repeat(Complement(a), 0, None)
+        expected = Concat((goto_body, tail))
+        assert expanded == expected
+
+
 class TestSereParser:
     def test_parse_atom(self) -> None:
         from logic_asts import parse_expr
@@ -428,3 +617,86 @@ class TestParseFirstMatch:
         # first_match(...) is an atom, so it accepts a repeat suffix.
         expr = parse_expr("first_match(a)[*]", syntax="sere")
         assert expr == Repeat(FirstMatch(Variable("a")), 0, None)
+
+
+class TestParseFusionRepeat:
+    def test_parse_fusion_star(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[:*]", syntax="sere") == FusionRepeat(Variable("a"), 0, None)
+
+    def test_parse_fusion_plus(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[:+]", syntax="sere") == FusionRepeat(Variable("a"), 1, None)
+
+    def test_parse_fusion_range(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[:*2..5]", syntax="sere") == FusionRepeat(Variable("a"), 2, 5)
+
+    def test_parse_fusion_point(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[:*3]", syntax="sere") == FusionRepeat(Variable("a"), 3, 3)
+
+    def test_parse_fusion_open_upper(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[:*2..]", syntax="sere") == FusionRepeat(Variable("a"), 2, None)
+
+
+class TestParseGotoRepeat:
+    def test_parse_goto_default(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[->]", syntax="sere") == GotoRepeat(Variable("a"), 1, 1)
+
+    def test_parse_goto_point(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[->2]", syntax="sere") == GotoRepeat(Variable("a"), 2, 2)
+
+    def test_parse_goto_range(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[->2..5]", syntax="sere") == GotoRepeat(Variable("a"), 2, 5)
+
+    def test_parse_goto_sere_operand(self) -> None:
+        from logic_asts import parse_expr
+
+        # Non-Boolean operand: extension beyond Spot.
+        expr = parse_expr("(a;b)[->2]", syntax="sere")
+        assert expr == GotoRepeat(Concat((Variable("a"), Variable("b"))), 2, 2)
+
+
+class TestParseEqualRepeat:
+    def test_parse_equal_default(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[=]", syntax="sere") == EqualRepeat(Variable("a"), 0, None)
+
+    def test_parse_equal_point(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[=3]", syntax="sere") == EqualRepeat(Variable("a"), 3, 3)
+
+    def test_parse_equal_range(self) -> None:
+        from logic_asts import parse_expr
+
+        assert parse_expr("a[=2..5]", syntax="sere") == EqualRepeat(Variable("a"), 2, 5)
+
+
+def test_complement_precedence_with_equal_repeat() -> None:
+    """`~` still binds tighter than the new repeat suffixes."""
+    from logic_asts import parse_expr
+
+    assert parse_expr("~a[=2]", syntax="sere") == EqualRepeat(Complement(Variable("a")), 2, 2)
+
+
+def test_concat_with_fusion_repeat() -> None:
+    """`[:*]` binds tighter than `;`, mirroring `[*]`."""
+    from logic_asts import parse_expr
+
+    expr = parse_expr("a[:*3];b", syntax="sere")
+    assert expr == Concat((FusionRepeat(Variable("a"), 3, 3), Variable("b")))

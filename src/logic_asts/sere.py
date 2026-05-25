@@ -14,11 +14,12 @@ Operators implemented:
     - NLMInter ``&``  (non-length-matching intersection)
     - Complement ``~`` (SERE complement; extension beyond Spot)
     - FirstMatch ``first_match(r)`` (SVA-derived; matches Spot's surface syntax)
+    - FusionRepeat ``[:*]``, ``[:+]``, ``[:*i]``, ``[:*i..j]``, ``[:*i..]`` (fusion-iteration)
+    - GotoRepeat ``[->]``, ``[->i]``, ``[->i..j]``, ``[->i..]`` (goto-repetition; extension beyond Spot for non-Boolean operands)
+    - EqualRepeat ``[=]``, ``[=i]``, ``[=i..j]``, ``[=i..]`` (equal-count repetition; extension beyond Spot for non-Boolean operands)
     - Repeat ``[*]``, ``[+]``, ``[*i]``, ``[*i..j]``, ``[*i..]``
 
-Out of scope (not supported): delay operators ``##i`` / ``##[i..j]``,
-goto / equal / non-consecutive repetitions ``[->i..j]``, ``[=i..j]``,
-``[:*i..j]``, ``[:+]``.
+Out of scope (not supported): delay operators ``##i`` / ``##[i..j]``.
 
 Extensions beyond Spot: ``~`` at the SERE level denotes SERE complement
 (``L(~r) = Sigma* \ L(r)``), not Boolean negation. ``!`` is the sole
@@ -26,7 +27,8 @@ Boolean negation glyph across every grammar in this package. Spot's
 SERE grammar has no complement operator, so any string emitted by this
 module containing ``~`` will be rejected by Spot. ``first_match``
 matches Spot's surface syntax, but combinations with ``~`` remain
-Spot-incompatible.
+Spot-incompatible. Goto and equal repetition (``[->]``, ``[=]``) accept
+arbitrary SERE operands here, not just Boolean formulas as in Spot.
 """
 
 from __future__ import annotations
@@ -329,8 +331,220 @@ class FirstMatch(Expr):
         return self.arg.horizon()
 
 
+@final
+@frozen
+class FusionRepeat(Expr):
+    r"""Fusion-iteration: ``r[:*low..high]``.
+
+    Like ``Repeat`` (`[*]`) but the separator is fusion (`:`) instead of
+    concatenation (`;`). Bounded form is syntactic sugar over :class:`Fusion`;
+    unbounded ``r[:*i..]`` (`high is None`) is a primitive operator
+    (Dax et al.). See :meth:`expand`.
+
+    ``low=None`` is treated as 0; ``high=None`` is unbounded.
+    """
+
+    arg: Expr
+    low: int | None = attrs.field(default=None)
+    high: int | None = attrs.field(default=None)
+
+    def __attrs_post_init__(self) -> None:
+        lo = _normalize_low(self.low)
+        if lo < 0:
+            raise ValueError(f"FusionRepeat.low must be non-negative, got {self.low}")
+        if self.high is not None and lo > self.high:
+            raise ValueError(f"FusionRepeat.low ({self.low}) must be <= FusionRepeat.high ({self.high})")
+
+    @override
+    def __str__(self) -> str:
+        lo = _normalize_low(self.low)
+        hi = self.high
+        if lo == 0 and hi is None:
+            suffix = "[:*]"
+        elif lo == 1 and hi is None:
+            suffix = "[:+]"
+        elif hi is None:
+            suffix = f"[:*{lo}..]"
+        elif lo == hi:
+            suffix = f"[:*{lo}]"
+        else:
+            suffix = f"[:*{lo}..{hi}]"
+        arg_str = f"({self.arg})" if isinstance(self.arg, (Repeat, FusionRepeat)) else str(self.arg)
+        return f"{arg_str}{suffix}"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def expand(self) -> Expr:
+        e = self.arg.expand()
+        lo = _normalize_low(self.low)
+        hi = self.high
+        if hi is None:
+            return FusionRepeat(e, self.low, None)
+        if lo == 0 and hi == 0:
+            return Literal(True)
+        if lo == 1 and hi == 1:
+            return e
+        if lo == hi:
+            return Fusion(tuple(e for _ in range(lo)))
+        parts: list[Expr] = []
+        for k in range(lo, hi + 1):
+            if k == 0:
+                parts.append(Literal(True))
+            elif k == 1:
+                parts.append(e)
+            else:
+                parts.append(Fusion(tuple(e for _ in range(k))))
+        return Alt(tuple(parts))
+
+    @override
+    def horizon(self) -> int | float:
+        if self.high is None:
+            return math.inf
+        return self.high * self.arg.horizon()
+
+
+@final
+@frozen
+class GotoRepeat(Expr):
+    r"""Goto-repetition: ``r[->low..high]``.
+
+    Generalized from Spot's Boolean-operand definition to arbitrary SERE
+    operand via :class:`Complement`. Extension beyond Spot.
+
+    Semantics (always desugarable)::
+
+        r[->i..j]  ==  (~r[*] ; r)[*i..j]
+
+    ``low=None`` is treated as 0; ``high=None`` is unbounded.
+    """
+
+    arg: Expr
+    low: int | None = attrs.field(default=None)
+    high: int | None = attrs.field(default=None)
+
+    def __attrs_post_init__(self) -> None:
+        lo = _normalize_low(self.low)
+        if lo < 0:
+            raise ValueError(f"GotoRepeat.low must be non-negative, got {self.low}")
+        if self.high is not None and lo > self.high:
+            raise ValueError(f"GotoRepeat.low ({self.low}) must be <= GotoRepeat.high ({self.high})")
+
+    @override
+    def __str__(self) -> str:
+        lo = _normalize_low(self.low)
+        hi = self.high
+        if lo == 1 and hi == 1:
+            suffix = "[->]"
+        elif hi is None:
+            suffix = f"[->{lo}..]"
+        elif lo == hi:
+            suffix = f"[->{lo}]"
+        else:
+            suffix = f"[->{lo}..{hi}]"
+        arg_str = f"({self.arg})" if isinstance(self.arg, (Repeat, FusionRepeat, GotoRepeat)) else str(self.arg)
+        return f"{arg_str}{suffix}"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def expand(self) -> Expr:
+        # Preserve operand identity in the expansion: do NOT call .expand()
+        # on the outer Repeat, because Concat.expand would flatten a SERE
+        # operand ``r`` (which may itself be a Concat) into the surrounding
+        # body. Downstream consumers like morphata pattern-match on the
+        # expanded shape, so the body's tuple must stay (~r[*], r).
+        e = self.arg.expand()
+        body = Concat((Repeat(Complement(e), 0, None), e))
+        lo = _normalize_low(self.low)
+        if lo == 1 and self.high == 1:
+            return body
+        return Repeat(body, self.low, self.high)
+
+    @override
+    def horizon(self) -> int | float:
+        return math.inf
+
+
+@final
+@frozen
+class EqualRepeat(Expr):
+    r"""Equal-count repetition: ``r[=low..high]``.
+
+    Generalized from Spot's Boolean-operand definition to arbitrary SERE
+    operand via :class:`Complement`. Extension beyond Spot.
+
+    Semantics (always desugarable)::
+
+        r[=i..j]  ==  (~r[*] ; r)[*i..j] ; ~r[*]
+
+    ``low=None`` is treated as 0; ``high=None`` is unbounded.
+    """
+
+    arg: Expr
+    low: int | None = attrs.field(default=None)
+    high: int | None = attrs.field(default=None)
+
+    def __attrs_post_init__(self) -> None:
+        lo = _normalize_low(self.low)
+        if lo < 0:
+            raise ValueError(f"EqualRepeat.low must be non-negative, got {self.low}")
+        if self.high is not None and lo > self.high:
+            raise ValueError(f"EqualRepeat.low ({self.low}) must be <= EqualRepeat.high ({self.high})")
+
+    @override
+    def __str__(self) -> str:
+        lo = _normalize_low(self.low)
+        hi = self.high
+        if lo == 0 and hi is None:
+            suffix = "[=]"
+        elif hi is None:
+            suffix = f"[={lo}..]"
+        elif lo == hi:
+            suffix = f"[={lo}]"
+        else:
+            suffix = f"[={lo}..{hi}]"
+        arg_str = f"({self.arg})" if isinstance(self.arg, (Repeat, FusionRepeat, GotoRepeat, EqualRepeat)) else str(self.arg)
+        return f"{arg_str}{suffix}"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield self.arg
+
+    @override
+    def expand(self) -> Expr:
+        # Preserve operand identity by reusing GotoRepeat.expand (which
+        # already avoids the flattening trap) and tacking on the
+        # complement-closure tail without re-flattening through
+        # Concat.expand.
+        goto_part = GotoRepeat(self.arg, self.low, self.high).expand()
+        tail = Repeat(Complement(self.arg.expand()), 0, None)
+        return Concat((goto_part, tail))
+
+    @override
+    def horizon(self) -> int | float:
+        return math.inf
+
+
 Var = TypeVar("Var")
-SEREExpr: TypeAlias = BoolExpr[Var] | Concat | Fusion | Alt | Inter | NLMInter | Complement | FirstMatch | Repeat
+SEREExpr: TypeAlias = (
+    BoolExpr[Var]
+    | Concat
+    | Fusion
+    | Alt
+    | Inter
+    | NLMInter
+    | Complement
+    | FirstMatch
+    | FusionRepeat
+    | GotoRepeat
+    | EqualRepeat
+    | Repeat
+)
 """Union of all SERE expression node types."""
 
 
@@ -346,6 +560,9 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
                 NLMInter,
                 Complement,
                 FirstMatch,
+                FusionRepeat,
+                GotoRepeat,
+                EqualRepeat,
                 Repeat,
                 Implies,
                 Equiv,
@@ -370,6 +587,9 @@ __all__ = [
     "NLMInter",
     "Complement",
     "FirstMatch",
+    "FusionRepeat",
+    "GotoRepeat",
+    "EqualRepeat",
     "Repeat",
     "sere_expr_iter",
 ]

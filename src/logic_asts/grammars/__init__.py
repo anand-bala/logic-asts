@@ -28,7 +28,19 @@ from logic_asts.psl import (
     SuffixImpliesUniv,
     WeakClosure,
 )
-from logic_asts.sere import Alt, Complement, Concat, FirstMatch, Fusion, Inter, NLMInter, Repeat
+from logic_asts.sere import (
+    Alt,
+    Complement,
+    Concat,
+    EqualRepeat,
+    FirstMatch,
+    Fusion,
+    FusionRepeat,
+    GotoRepeat,
+    Inter,
+    NLMInter,
+    Repeat,
+)
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
@@ -246,6 +258,32 @@ class SereTransform(Transformer[Token, Expr]):
     def repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
         low, high = suffix
         return Repeat(arg, low, high)
+
+    def fusion_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+        low, high = suffix
+        return FusionRepeat(arg, low, high)
+
+    def goto_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+        low, high = suffix
+        return GotoRepeat(arg, low, high)
+
+    def equal_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+        low, high = suffix
+        return EqualRepeat(arg, low, high)
+
+    def fusion_star_unbounded(self) -> tuple[int | None, int | None]:
+        return (0, None)
+
+    def fusion_plus_unbounded(self) -> tuple[int | None, int | None]:
+        return (1, None)
+
+    def goto_unbounded_default(self) -> tuple[int | None, int | None]:
+        # Spot shorthand: [->] == [->1..1]
+        return (1, 1)
+
+    def equal_unbounded_default(self) -> tuple[int | None, int | None]:
+        # Spot shorthand: [=] == [=0..]
+        return (0, None)
 
     def star_unbounded(self) -> tuple[int | None, int | None]:
         return (0, None)
