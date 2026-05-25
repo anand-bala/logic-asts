@@ -137,3 +137,11 @@ def test_is_psl_expr_rejects_strel_node() -> None:
 
     expr = Somewhere(Variable("a"), DistanceInterval(0, 5), None)
     assert not is_psl_expr(expr)
+
+
+def test_psl_strong_closure_over_nlm_inter() -> None:
+    """PSL reuses the SERE grammar; ``{a & b}!`` should parse."""
+    from logic_asts import parse_expr
+
+    expr = parse_expr("{a & b}!", syntax="psl")
+    assert parse_expr(str(expr), syntax="psl") == expr

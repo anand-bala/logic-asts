@@ -37,10 +37,10 @@ The library implements complete support for the following logical systems:
    Regex-like patterns over Boolean state formulas.
    Only a *core subset* of Spot's SERE syntax is supported: concatenation
    (`;`), fusion (`:`), alternation (`|`), length-matching intersection
-   (`&&`), and repetition (`[*]`, `[+]`, `[*i]`, `[*i..j]`, `[*i..]`).
-   Delay operators (`##i`, `##[i..j]`), goto/equal/non-consecutive
-   repetitions (`[->i..j]`, `[=i..j]`, `[:*i..j]`, `[:+]`), `first_match`,
-   and non-length-matching intersection (`&`) are *not* supported.
+   (`&&`), non-length-matching intersection (`&`), and repetition (`[*]`,
+   `[+]`, `[*i]`, `[*i..j]`, `[*i..]`). Delay operators (`##i`,
+   `##[i..j]`), goto/equal/non-consecutive repetitions (`[->i..j]`,
+   `[=i..j]`, `[:*i..j]`, `[:+]`), and `first_match` are *not* supported.
 
 6. **Property Specification Logic (psl)**:
    LTL extended with the SERE-LTL binding operators `{r}[]-> f`,

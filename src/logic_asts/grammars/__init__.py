@@ -28,7 +28,7 @@ from logic_asts.psl import (
     SuffixImpliesUniv,
     WeakClosure,
 )
-from logic_asts.sere import Alt, Concat, Fusion, Inter, Repeat
+from logic_asts.sere import Alt, Concat, Fusion, Inter, NLMInter, Repeat
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
@@ -224,6 +224,10 @@ class SereTransform(Transformer[Token, Expr]):
     @v_args(inline=False)
     def inter(self, args: list[Expr]) -> Expr:
         return Inter(tuple(args))
+
+    @v_args(inline=False)
+    def nlm_inter(self, args: list[Expr]) -> Expr:
+        return NLMInter(tuple(args))
 
     @v_args(inline=False)
     def concat(self, args: list[Expr]) -> Expr:

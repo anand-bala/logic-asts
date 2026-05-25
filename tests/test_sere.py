@@ -5,7 +5,7 @@ import math
 import pytest
 
 from logic_asts.base import Variable
-from logic_asts.sere import Alt, Concat, Fusion, Inter, Repeat
+from logic_asts.sere import Alt, Concat, Fusion, Inter, NLMInter, Repeat
 
 
 class TestRepeat:
@@ -125,6 +125,33 @@ class TestInter:
         assert Inter((Inter((a, b)), c)).expand() == Inter((a, b, c))
 
 
+class TestNLMInter:
+    def test_str_binary(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        assert str(NLMInter((a, b))) == "(a & b)"
+
+    def test_str_ternary(self) -> None:
+        a, b, c = Variable("a"), Variable("b"), Variable("c")
+        assert str(NLMInter((a, b, c))) == "(a & b & c)"
+
+    def test_horizon(self) -> None:
+        a = Variable("a")
+        b = Repeat(Variable("b"), low=0, high=3)
+        assert NLMInter((a, b)).horizon() == max(a.horizon(), b.horizon())
+
+    def test_expand_flattens(self) -> None:
+        a, b, c = Variable("a"), Variable("b"), Variable("c")
+        assert NLMInter((NLMInter((a, b)), c)).expand() == NLMInter((a, b, c))
+
+    def test_children_order(self) -> None:
+        a, b, c = Variable("a"), Variable("b"), Variable("c")
+        assert tuple(NLMInter((a, b, c)).children()) == (a, b, c)
+
+    def test_min_len_two(self) -> None:
+        with pytest.raises(ValueError):
+            NLMInter((Variable("a"),))
+
+
 def test_sere_expr_iter_yields_postorder() -> None:
     from logic_asts.sere import SEREExpr, sere_expr_iter
 
@@ -202,6 +229,39 @@ class TestSereParser:
         src = "(a ; b[*0..3]) | (c && d[+])"
         expr = parse_expr(src, syntax="sere")
         # str(expr) must reparse to the same AST.
+        assert parse_expr(str(expr), syntax="sere") == expr
+
+    def test_parse_nlm_inter_binary(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("a & b", syntax="sere")
+        assert expr == NLMInter((Variable("a"), Variable("b")))
+
+    def test_parse_nlm_inter_lower_than_inter(self) -> None:
+        from logic_asts import parse_expr
+
+        # && binds tighter than &, so this is a & (b && c)
+        expr = parse_expr("a & b && c", syntax="sere")
+        assert expr == NLMInter((Variable("a"), Inter((Variable("b"), Variable("c")))))
+
+    def test_parse_nlm_inter_higher_than_alt(self) -> None:
+        from logic_asts import parse_expr
+
+        # & binds tighter than |, so this is a | (b & c)
+        expr = parse_expr("a | b & c", syntax="sere")
+        assert expr == Alt((Variable("a"), NLMInter((Variable("b"), Variable("c")))))
+
+    def test_parse_nlm_inter_chains(self) -> None:
+        from logic_asts import parse_expr
+
+        expr = parse_expr("a & b & c", syntax="sere")
+        assert expr == NLMInter((Variable("a"), Variable("b"), Variable("c")))
+
+    def test_parse_nlm_inter_roundtrip(self) -> None:
+        from logic_asts import parse_expr
+
+        src = "((a & b) | (c && d))"
+        expr = parse_expr(src, syntax="sere")
         assert parse_expr(str(expr), syntax="sere") == expr
 
 

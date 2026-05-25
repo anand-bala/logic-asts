@@ -2,20 +2,21 @@ r"""Abstract syntax trees for Sequential Extended Regular Expressions (SERE).
 
 This module implements the core subset of Spot's SERE syntax (see Spot's
 ``tl.pdf``, section 2.5). SERE is a regex-like layer over Boolean state
-formulas with concatenation, fusion, alternation, length-matching
-intersection, and repetition. Boolean leaves reuse ``base.BaseExpr``.
+formulas with concatenation, fusion, alternation, length-matching and
+non-length-matching intersection, and repetition. Boolean leaves reuse
+``base.BaseExpr``.
 
 Operators implemented:
     - Concat ``;``
     - Fusion ``:``
     - Alt    ``|`` (alternation, distinct from Boolean Or at the SERE level)
-    - Inter  ``&&`` (length-matching intersection)
+    - Inter    ``&&`` (length-matching intersection)
+    - NLMInter ``&``  (non-length-matching intersection)
     - Repeat ``[*]``, ``[+]``, ``[*i]``, ``[*i..j]``, ``[*i..]``
 
 Out of scope (not supported): delay operators ``##i`` / ``##[i..j]``,
 goto / equal / non-consecutive repetitions ``[->i..j]``, ``[=i..j]``,
-``[:*i..j]``, ``[:+]``, ``first_match``, and the non-length-matching
-intersection ``&``.
+``[:*i..j]``, ``[:+]``, and ``first_match``.
 """
 
 from __future__ import annotations
@@ -209,8 +210,42 @@ class Inter(Expr):
         return max(a.horizon() for a in self.args)
 
 
+@final
+@frozen
+class NLMInter(Expr):
+    r"""SERE non-length-matching intersection: ``r1 & r2 & ... & rn``.
+
+    A word ``w`` matches iff one operand matches ``w`` exactly and every
+    other operand matches some prefix of ``w``. Equivalently::
+
+        L(r1 & r2) = (L(r1) & L(r2) . Sigma*) | (L(r1) . Sigma* & L(r2))
+
+    Contrast with :class:`Inter` (``&&``), which requires all operands
+    to match the same word of the same length.
+    """
+
+    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+
+    @override
+    def __str__(self) -> str:
+        return "(" + " & ".join(str(a) for a in self.args) + ")"
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from self.args
+
+    @override
+    def expand(self) -> Expr:
+        expanded = tuple(a.expand() for a in self.args)
+        return NLMInter(_flatten_same_kind(NLMInter, expanded))
+
+    @override
+    def horizon(self) -> int | float:
+        return max(a.horizon() for a in self.args)
+
+
 Var = TypeVar("Var")
-SEREExpr: TypeAlias = BoolExpr[Var] | Concat | Fusion | Alt | Inter | Repeat
+SEREExpr: TypeAlias = BoolExpr[Var] | Concat | Fusion | Alt | Inter | NLMInter | Repeat
 """Union of all SERE expression node types."""
 
 
@@ -223,6 +258,7 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
                 Fusion,
                 Alt,
                 Inter,
+                NLMInter,
                 Repeat,
                 Implies,
                 Equiv,
@@ -244,6 +280,7 @@ __all__ = [
     "Fusion",
     "Alt",
     "Inter",
+    "NLMInter",
     "Repeat",
     "sere_expr_iter",
 ]

@@ -3,7 +3,8 @@
 start: sere
 
 ?sere: alt
-?alt: inter ("|" inter)+ -> alt | inter
+?alt: nlm_inter ("|" nlm_inter)+ -> alt | nlm_inter
+?nlm_inter: inter ("&" inter)+ -> nlm_inter | inter
 ?inter: concat ("&&" concat)+ -> inter | concat
 ?concat: fusion (";" fusion)+ -> concat | fusion
 ?fusion: rep (":" rep)+ -> fusion | rep
