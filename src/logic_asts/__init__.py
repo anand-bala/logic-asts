@@ -154,7 +154,20 @@ def is_sere_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Typ
         return all(
             isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
             or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(expr, sere.Concat | sere.Fusion | sere.Alt | sere.Inter | sere.Repeat)
+            or isinstance(
+                expr,
+                sere.Concat
+                | sere.Fusion
+                | sere.Alt
+                | sere.Inter
+                | sere.NLMInter
+                | sere.Complement
+                | sere.FirstMatch
+                | sere.FusionRepeat
+                | sere.GotoRepeat
+                | sere.EqualRepeat
+                | sere.Repeat,
+            )
             for expr in obj.iter_subtree()
         )
     return False
@@ -178,7 +191,20 @@ def is_psl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
                 | ltl.Release
                 | ltl.StrongRelease,
             )
-            or isinstance(expr, sere.Concat | sere.Fusion | sere.Alt | sere.Inter | sere.Repeat)
+            or isinstance(
+                expr,
+                sere.Concat
+                | sere.Fusion
+                | sere.Alt
+                | sere.Inter
+                | sere.NLMInter
+                | sere.Complement
+                | sere.FirstMatch
+                | sere.FusionRepeat
+                | sere.GotoRepeat
+                | sere.EqualRepeat
+                | sere.Repeat,
+            )
             or isinstance(
                 expr,
                 psl.SuffixImpliesUniv | psl.SuffixImpliesExist | psl.WeakClosure | psl.StrongClosure,

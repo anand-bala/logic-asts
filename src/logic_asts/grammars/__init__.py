@@ -22,6 +22,7 @@ from logic_asts.ltl import (
     WeakUntil,
 )
 from logic_asts.psl import (
+    PSLFormula,
     StrongClosure,
     SuffixImpliesExist,
     SuffixImpliesUniv,
@@ -39,6 +40,7 @@ from logic_asts.sere import (
     Inter,
     NLMInter,
     Repeat,
+    SEREExpr,
 )
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
@@ -68,6 +70,16 @@ def _unquote_identifier(text: str) -> str:
                 i += 1
         return "".join(out)
     return text
+
+
+class MaybeStrongStep(typing.NamedTuple):
+    steps: int | None
+    strong: bool
+
+
+class MaybeStrongInterval(typing.NamedTuple):
+    interval: TimeInterval
+    strong: bool
 
 
 @typing.final
@@ -150,7 +162,7 @@ class LtlTransform(Transformer[Token, Expr]):
         interval = interval or TimeInterval()
         return StrongRelease(lhs, rhs, interval)
 
-    def always(self, interval: TimeInterval | tuple[TimeInterval, bool] | None, arg: Expr) -> Expr:
+    def always(self, interval: TimeInterval | MaybeStrongInterval | None, arg: Expr) -> Expr:
         # interval can be:
         # - None (no interval)
         # - TimeInterval (regular time interval)
@@ -162,7 +174,7 @@ class LtlTransform(Transformer[Token, Expr]):
             interval = TimeInterval()
         return Always(arg, interval, strong=strong)
 
-    def eventually(self, interval: TimeInterval | tuple[TimeInterval, bool] | None, arg: Expr) -> Expr:
+    def eventually(self, interval: TimeInterval | MaybeStrongInterval | None, arg: Expr) -> Expr:
         # interval can be:
         # - None (no interval)
         # - TimeInterval (regular time interval)
@@ -174,35 +186,31 @@ class LtlTransform(Transformer[Token, Expr]):
             interval = TimeInterval()
         return Eventually(arg, interval, strong=strong)
 
-    def next(self, modifier: dict[str, typing.Any] | None, arg: Expr) -> Expr:
-        # modifier is the result from next_modifier rule, can be:
-        # - dict with 'strong'=True (from strong_next)
-        # - dict with 'steps' and optionally 'strong' (from weak_step, strong_step)
-        # - None (from weak_next, when empty)
+    def next(self, modifier: MaybeStrongStep | None, arg: Expr) -> Expr:
         if modifier is None:
             # weak_next: X p
             return Next(arg, None)
         else:
-            if modifier.get("strong"):
+            if modifier.strong:
                 # strong_next: X[!] p
-                steps = modifier.get("steps")
+                steps = modifier.steps
                 return StrongNext(arg, steps)
             else:
                 # weak_step: X[n] p
-                steps = modifier.get("steps")
+                steps = modifier.steps
                 return Next(arg, steps)
 
-    def strong_next(self) -> dict[str, typing.Any]:
+    def strong_next(self) -> MaybeStrongStep:
         # X[!] -> strong next, no steps
-        return {"strong": True, "steps": None}
+        return MaybeStrongStep(None, True)
 
-    def weak_step(self, steps: int) -> dict[str, typing.Any]:
+    def weak_step(self, steps: int) -> MaybeStrongStep:
         # X[n] -> weak next with steps
-        return {"strong": False, "steps": steps}
+        return MaybeStrongStep(steps, False)
 
-    def strong_step(self, steps: int) -> dict[str, typing.Any]:
+    def strong_step(self, steps: int) -> MaybeStrongStep:
         # X[n!] -> strong next with steps
-        return {"strong": True, "steps": steps}
+        return MaybeStrongStep(steps, True)
 
     def weak_next(self) -> None:
         # X -> weak next with no steps
@@ -211,9 +219,8 @@ class LtlTransform(Transformer[Token, Expr]):
     def time_interval(self, start: int | None, end: int | None) -> TimeInterval:
         return TimeInterval(start, end)
 
-    def time_interval_strong(self, start: int | None, end: int | None) -> tuple[TimeInterval, bool]:
-        # Return (TimeInterval, strong=True)
-        return (TimeInterval(start, end), True)
+    def time_interval_strong(self, start: int | None, end: int | None) -> MaybeStrongInterval:
+        return MaybeStrongInterval(TimeInterval(start, end), True)
 
     def INT(self, value: Token | int) -> int:  # noqa: N802
         return int(value)
@@ -464,27 +471,39 @@ class PslTransform(Transformer[Token, Expr]):
         return expr
 
     def suffix_implies_univ(self, sere: Expr, formula: Expr) -> Expr:
-        return SuffixImpliesUniv(sere, formula)
+        return SuffixImpliesUniv(
+            typing.cast(SEREExpr[str], sere),
+            typing.cast(PSLFormula[str], formula),
+        )
 
     def suffix_implies_exist(self, sere: Expr, formula: Expr) -> Expr:
-        return SuffixImpliesExist(sere, formula)
+        return SuffixImpliesExist(
+            typing.cast(SEREExpr[str], sere),
+            typing.cast(PSLFormula[str], formula),
+        )
 
     def suffix_implies_univ_then(self, sere: Expr, formula: Expr) -> Expr:
         # {r}[]=> f  ==  {r ; 1}[]-> f
-        return SuffixImpliesUniv(Concat((sere, Literal(True))), formula)
+        return SuffixImpliesUniv(
+            Concat((sere, Literal(True))),
+            typing.cast(PSLFormula[str], formula),
+        )
 
     def suffix_implies_exist_then(self, sere: Expr, formula: Expr) -> Expr:
         # {r}<>=> f  ==  {r ; 1}<>-> f
-        return SuffixImpliesExist(Concat((sere, Literal(True))), formula)
+        return SuffixImpliesExist(
+            Concat((sere, Literal(True))),
+            typing.cast(PSLFormula[str], formula),
+        )
 
     def weak_closure(self, sere: Expr) -> Expr:
-        return WeakClosure(sere)
+        return WeakClosure(typing.cast(SEREExpr[str], sere))
 
     def strong_closure(self, sere: Expr) -> Expr:
-        return StrongClosure(sere)
+        return StrongClosure(typing.cast(SEREExpr[str], sere))
 
     def neg_weak_closure(self, sere: Expr) -> Expr:
-        return Not(WeakClosure(sere))
+        return Not(WeakClosure(typing.cast(SEREExpr[str], sere)))
 
 
 @enum.unique

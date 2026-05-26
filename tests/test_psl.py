@@ -1,5 +1,7 @@
 """Tests for the psl module."""
 
+import pytest
+
 from logic_asts.base import Literal, Not, Variable
 from logic_asts.ltl import Always, Eventually, Release, Until
 from logic_asts.psl import (
@@ -117,7 +119,7 @@ def test_psl_expr_iter_walks_mixed_tree() -> None:
     a, b, c = Variable("a"), Variable("b"), Variable("c")
     sere_part = Concat((a, b))
     formula = Eventually(c)
-    node = SuffixImpliesUniv(sere_part, formula)
+    node: SuffixImpliesUniv[str] = SuffixImpliesUniv(sere_part, formula)
     nodes: list[PSLExpr[str]] = list(psl_expr_iter(node))
     assert nodes[-1] == node
     assert sere_part in nodes
@@ -127,7 +129,7 @@ def test_psl_expr_iter_walks_mixed_tree() -> None:
 def test_is_psl_expr_accepts_mixed_tree() -> None:
     from logic_asts import is_psl_expr
 
-    expr = SuffixImpliesUniv(Concat((Variable("a"), Variable("b"))), Eventually(Variable("c")))
+    expr: SuffixImpliesUniv[str] = SuffixImpliesUniv(Concat((Variable("a"), Variable("b"))), Eventually(Variable("c")))
     assert is_psl_expr(expr)
 
 
@@ -284,5 +286,53 @@ class TestPslClosureNnf:
     def test_sere_argument_to_closure_not_recursed(self) -> None:
         a, b = Variable("a"), Variable("b")
         r = Concat((a, b))
-        expr = WeakClosure(r)
+        expr: WeakClosure[str] = WeakClosure(r)
         assert to_nnf(expr, negate=True) == Not(WeakClosure(r))
+
+
+class TestPslValidators:
+    def test_weak_closure_rejects_ltl_formula(self) -> None:
+
+        ltl_formula = Always(Variable("p"))
+        with pytest.raises(TypeError):
+            WeakClosure(ltl_formula)  # type: ignore[arg-type]
+
+    def test_strong_closure_rejects_ltl_formula(self) -> None:
+
+        ltl_formula = Eventually(Variable("p"))
+        with pytest.raises(TypeError):
+            StrongClosure(ltl_formula)  # type: ignore[arg-type]
+
+    def test_suffix_implies_univ_rejects_ltl_in_sere_slot(self) -> None:
+
+        ltl_formula = Always(Variable("p"))
+        with pytest.raises(TypeError):
+            SuffixImpliesUniv(ltl_formula, Variable("q"))  # type: ignore[arg-type]
+
+    def test_suffix_implies_univ_rejects_bare_sere_in_formula_slot(self) -> None:
+
+        sere = Concat((Variable("a"), Variable("b")))
+        with pytest.raises(TypeError):
+            SuffixImpliesUniv(Variable("r"), sere)  # type: ignore[arg-type]
+
+    def test_suffix_implies_exist_rejects_ltl_in_sere_slot(self) -> None:
+
+        ltl_formula = Until(Variable("p"), Variable("q"))
+        with pytest.raises(TypeError):
+            SuffixImpliesExist(ltl_formula, Variable("r"))  # type: ignore[arg-type]
+
+    def test_well_typed_constructions_succeed(self) -> None:
+        # Should not raise.
+        WeakClosure(Variable("a"))
+        WeakClosure(Concat((Variable("a"), Variable("b"))))
+        StrongClosure(Variable("a"))
+        SuffixImpliesUniv(Variable("a"), Variable("b"))
+        SuffixImpliesUniv(
+            Concat((Variable("a"), Variable("b"))),
+            Always(Variable("p")),
+        )
+        # PSL nesting: formula slot may itself be a closure / suffix implication.
+        SuffixImpliesUniv(
+            Variable("r"),
+            WeakClosure(Variable("a")),
+        )

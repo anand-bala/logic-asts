@@ -2,12 +2,16 @@
 # pyright: reportExplicitAny=false
 from __future__ import annotations
 
+from collections.abc import Hashable
 from numbers import Real
-from typing import Any
+from typing import Any, TypeVar
 
 import attrs
+from typing_extensions import overload
 
 import logic_asts as logic
+
+_Var = TypeVar("_Var", bound=Hashable)
 
 
 def check_positive(_instance: Any, attribute: attrs.Attribute[None], value: Real | None) -> None:
@@ -40,6 +44,35 @@ def _convert_next_step(value: int | None) -> int | None:
         return None
     else:
         return value
+
+
+# Overloads: ordered most-specific first.
+@overload
+def to_nnf(expr: logic.base.BaseExpr[_Var], *, negate: bool = False, _expanded: bool = False) -> logic.base.BaseExpr[_Var]: ...
+@overload
+def to_nnf(  # type: ignore[overload-overlap]
+    expr: logic.ltl.LTLExpr[_Var], *, negate: bool = False, _expanded: bool = False
+) -> logic.ltl.LTLExpr[_Var]: ...
+@overload
+def to_nnf(  # type: ignore[overload-overlap]
+    expr: logic.sere.SEREExpr[_Var], *, negate: bool = False, _expanded: bool = False
+) -> logic.sere.SEREExpr[_Var]: ...
+@overload
+def to_nnf(  # type: ignore[overload-overlap]
+    expr: logic.strel.STRELExpr[_Var], *, negate: bool = False, _expanded: bool = False
+) -> logic.strel.STRELExpr[_Var]: ...
+@overload
+def to_nnf(  # type: ignore[overload-overlap]
+    expr: logic.stl_go.STLGOExpr[_Var], *, negate: bool = False, _expanded: bool = False
+) -> logic.stl_go.STLGOExpr[_Var]: ...
+@overload
+def to_nnf(
+    expr: logic.psl.PSLFormula[_Var], *, negate: bool = False, _expanded: bool = False
+) -> logic.psl.PSLFormula[_Var]: ...
+@overload
+def to_nnf(expr: logic.psl.PSLExpr[_Var], *, negate: bool = False, _expanded: bool = False) -> logic.psl.PSLExpr[_Var]: ...
+@overload
+def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -> logic.Expr: ...
 
 
 def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -> logic.Expr:
