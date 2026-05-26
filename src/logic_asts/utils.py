@@ -193,6 +193,47 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
                 return logic.Not(expr)
             else:
                 return expr
+        case logic.psl.SuffixImpliesUniv(sere, formula):
+            new_formula = to_nnf(formula, negate=negate, _expanded=_expanded)
+            if negate:
+                return logic.psl.SuffixImpliesExist(sere, new_formula)
+            return logic.psl.SuffixImpliesUniv(sere, new_formula)
+        case logic.psl.SuffixImpliesExist(sere, formula):
+            new_formula = to_nnf(formula, negate=negate, _expanded=_expanded)
+            if negate:
+                return logic.psl.SuffixImpliesUniv(sere, new_formula)
+            return logic.psl.SuffixImpliesExist(sere, new_formula)
+        case logic.psl.WeakClosure(sere):
+            if negate:
+                return logic.psl.NegStrongClosure(sere)
+            return expr
+        case logic.psl.NegStrongClosure(sere):
+            if negate:
+                return logic.psl.WeakClosure(sere)
+            return expr
+        case logic.psl.StrongClosure():
+            if negate:
+                return logic.Not(expr)
+            return expr
+        case logic.sere.Complement(inner):
+            if negate:
+                return inner
+            return expr
+        case (
+            logic.sere.Concat()
+            | logic.sere.Fusion()
+            | logic.sere.Alt()
+            | logic.sere.Inter()
+            | logic.sere.NLMInter()
+            | logic.sere.Repeat()
+            | logic.sere.GotoRepeat()
+            | logic.sere.EqualRepeat()
+            | logic.sere.FusionRepeat()
+            | logic.sere.FirstMatch()
+        ):
+            if negate:
+                return logic.sere.Complement(expr)
+            return expr
         case _:
             # When unsure, just return
             if negate:

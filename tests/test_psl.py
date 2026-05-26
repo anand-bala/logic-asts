@@ -1,7 +1,7 @@
 """Tests for the psl module."""
 
-from logic_asts.base import Variable
-from logic_asts.ltl import Always, Eventually
+from logic_asts.base import Not, Variable
+from logic_asts.ltl import Always, Eventually, Release, Until
 from logic_asts.psl import (
     NegStrongClosure,
     StrongClosure,
@@ -10,6 +10,7 @@ from logic_asts.psl import (
     WeakClosure,
 )
 from logic_asts.sere import Concat, Repeat
+from logic_asts.utils import to_nnf
 
 
 class TestPslNodes:
@@ -190,3 +191,103 @@ class TestPslExtendedRepetition:
 
         expr = parse_expr("{a[=1..3]}[]-> c", syntax="psl")
         assert parse_expr(str(expr), syntax="psl") == expr
+
+
+class TestPslSuffixImpliesNnf:
+    def test_univ_no_negate_recurses_into_formula(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesUniv(r, phi)
+        assert to_nnf(expr) == SuffixImpliesUniv(r, to_nnf(phi))
+
+    def test_exist_no_negate_recurses_into_formula(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesExist(r, phi)
+        assert to_nnf(expr) == SuffixImpliesExist(r, to_nnf(phi))
+
+    def test_negate_univ_becomes_exist(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesUniv(r, phi)
+        expected = SuffixImpliesExist(r, to_nnf(phi, negate=True))
+        assert to_nnf(expr, negate=True) == expected
+
+    def test_negate_exist_becomes_univ(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesExist(r, phi)
+        expected = SuffixImpliesUniv(r, to_nnf(phi, negate=True))
+        assert to_nnf(expr, negate=True) == expected
+
+    def test_double_negation_univ_round_trip(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesUniv(r, phi)
+        assert to_nnf(~~expr) == to_nnf(expr)
+
+    def test_double_negation_exist_round_trip(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        phi = Until(a, b)
+        expr = SuffixImpliesExist(r, phi)
+        assert to_nnf(~~expr) == to_nnf(expr)
+
+    def test_sere_argument_not_recursed(self) -> None:
+        a, b, phi = Variable("a"), Variable("b"), Variable("phi")
+        r = Concat((a, b))
+        expr = SuffixImpliesUniv(r, phi)
+        assert to_nnf(expr) == SuffixImpliesUniv(r, phi)
+
+    def test_mixed_negation_pushes_into_until(self) -> None:
+        a, b, r = Variable("a"), Variable("b"), Variable("r")
+        expr = SuffixImpliesUniv(r, Until(a, b))
+        result = to_nnf(expr, negate=True)
+        assert result == SuffixImpliesExist(r, Release(~a, ~b))
+
+
+class TestPslClosureNnf:
+    def test_weak_closure_no_negate_unchanged(self) -> None:
+        r = Variable("r")
+        expr = WeakClosure(r)
+        assert to_nnf(expr) == expr
+
+    def test_weak_closure_negate_becomes_neg_strong(self) -> None:
+        r = Variable("r")
+        expr = WeakClosure(r)
+        assert to_nnf(expr, negate=True) == NegStrongClosure(r)
+
+    def test_neg_strong_closure_no_negate_unchanged(self) -> None:
+        r = Variable("r")
+        expr = NegStrongClosure(r)
+        assert to_nnf(expr) == expr
+
+    def test_neg_strong_closure_negate_becomes_weak(self) -> None:
+        r = Variable("r")
+        expr = NegStrongClosure(r)
+        assert to_nnf(expr, negate=True) == WeakClosure(r)
+
+    def test_weak_closure_double_negation(self) -> None:
+        r = Variable("r")
+        expr = WeakClosure(r)
+        assert to_nnf(~~expr) == to_nnf(expr)
+
+    def test_neg_strong_closure_double_negation(self) -> None:
+        r = Variable("r")
+        expr = NegStrongClosure(r)
+        assert to_nnf(~~expr) == to_nnf(expr)
+
+    def test_strong_closure_no_negate_unchanged(self) -> None:
+        r = Variable("r")
+        expr = StrongClosure(r)
+        assert to_nnf(expr) == expr
+
+    def test_strong_closure_negate_wraps_in_not(self) -> None:
+        r = Variable("r")
+        expr = StrongClosure(r)
+        assert to_nnf(expr, negate=True) == Not(expr)
+
+    def test_sere_argument_to_closure_not_recursed(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Concat((a, b))
+        expr = WeakClosure(r)
+        assert to_nnf(expr, negate=True) == NegStrongClosure(r)

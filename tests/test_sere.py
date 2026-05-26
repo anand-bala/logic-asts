@@ -18,6 +18,7 @@ from logic_asts.sere import (
     NLMInter,
     Repeat,
 )
+from logic_asts.utils import to_nnf
 
 
 class TestRepeat:
@@ -700,3 +701,80 @@ def test_concat_with_fusion_repeat() -> None:
 
     expr = parse_expr("a[:*3];b", syntax="sere")
     assert expr == Concat((FusionRepeat(Variable("a"), 3, 3), Variable("b")))
+
+
+class TestSereToNnf:
+    def test_concat_no_negate_returns_unchanged(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Concat((a, b))
+        assert to_nnf(expr) == expr
+
+    def test_concat_negate_wraps_in_complement(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Concat((a, b))
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_fusion_negate_wraps_in_complement(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Fusion((a, b))
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_alt_negate_wraps_in_complement(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Alt((a, b))
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_inter_negate_wraps_in_complement(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Inter((a, b))
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_nlm_inter_negate_wraps_in_complement(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = NLMInter((a, b))
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_repeat_negate_wraps_in_complement(self) -> None:
+        a = Variable("a")
+        expr = Repeat(a, 0, None)
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_goto_repeat_negate_complements_expanded(self) -> None:
+        a = Variable("a")
+        expr = GotoRepeat(a, 1, 1)
+        expanded = expr.expand()
+        assert to_nnf(expr, negate=True) == Complement(expanded)
+
+    def test_equal_repeat_negate_complements_expanded(self) -> None:
+        a = Variable("a")
+        expr = EqualRepeat(a, 0, None)
+        expanded = expr.expand()
+        assert to_nnf(expr, negate=True) == Complement(expanded)
+
+    def test_fusion_repeat_negate_wraps_in_complement(self) -> None:
+        a = Variable("a")
+        expr = FusionRepeat(a, 1, None)
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_first_match_negate_wraps_in_complement(self) -> None:
+        a = Variable("a")
+        expr = FirstMatch(a)
+        assert to_nnf(expr, negate=True) == Complement(expr)
+
+    def test_complement_no_negate_unchanged(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        inner = Concat((a, b))
+        expr = Complement(inner)
+        assert to_nnf(expr) == expr
+
+    def test_complement_negate_eliminates_double(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        inner = Concat((a, b))
+        expr = Complement(inner)
+        assert to_nnf(expr, negate=True) == inner
+
+    def test_not_of_sere_via_invert(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        inner = Concat((a, b))
+        expr = ~inner
+        assert to_nnf(expr) == Complement(inner)
