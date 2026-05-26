@@ -203,13 +203,9 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
             if negate:
                 return logic.psl.SuffixImpliesUniv(sere, new_formula)
             return logic.psl.SuffixImpliesExist(sere, new_formula)
-        case logic.psl.WeakClosure(sere):
+        case logic.psl.WeakClosure():
             if negate:
-                return logic.psl.NegStrongClosure(sere)
-            return expr
-        case logic.psl.NegStrongClosure(sere):
-            if negate:
-                return logic.psl.WeakClosure(sere)
+                return logic.Not(expr)
             return expr
         case logic.psl.StrongClosure():
             if negate:

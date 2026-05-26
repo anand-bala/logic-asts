@@ -31,7 +31,6 @@ from logic_asts import parse_expr
 from logic_asts.base import Variable
 from logic_asts.grammars import SupportedGrammars
 from logic_asts.psl import (
-    NegStrongClosure,
     StrongClosure,
     SuffixImpliesExist,
     SuffixImpliesUniv,
@@ -225,7 +224,6 @@ def psl_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
         st.builds(SuffixImpliesExist, sere, formulas),
         st.builds(WeakClosure, sere),
         st.builds(StrongClosure, sere),
-        st.builds(NegStrongClosure, sere),
         formulas,
     )
 

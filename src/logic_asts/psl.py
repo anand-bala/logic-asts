@@ -145,31 +145,7 @@ class StrongClosure(Expr):
 
     @override
     def expand(self) -> Expr:
-        return StrongClosure(self.sere.expand())
-
-    @override
-    def horizon(self) -> int | float:
-        return self.sere.horizon()
-
-
-@final
-@frozen
-class NegStrongClosure(Expr):
-    r"""``!{r}`` (negated strong closure, primitive per Spot)."""
-
-    sere: Expr
-
-    @override
-    def __str__(self) -> str:
-        return f"!{{{self.sere}}}"
-
-    @override
-    def children(self) -> Iterator[Expr]:
-        yield self.sere
-
-    @override
-    def expand(self) -> Expr:
-        return NegStrongClosure(self.sere.expand())
+        return SuffixImpliesExist(self.sere.expand(), Literal(True))
 
     @override
     def horizon(self) -> int | float:
@@ -178,7 +154,7 @@ class NegStrongClosure(Expr):
 
 Var = TypeVar("Var")
 PSLExpr: TypeAlias = (
-    LTLExpr[Var] | SEREExpr[Var] | SuffixImpliesUniv | SuffixImpliesExist | WeakClosure | StrongClosure | NegStrongClosure
+    LTLExpr[Var] | SEREExpr[Var] | SuffixImpliesUniv | SuffixImpliesExist | WeakClosure | StrongClosure
 )
 
 
@@ -192,7 +168,6 @@ def psl_expr_iter(expr: PSLExpr[Var]) -> Iterator[PSLExpr[Var]]:
                 SuffixImpliesExist,
                 WeakClosure,
                 StrongClosure,
-                NegStrongClosure,
                 # LTL
                 Next,
                 StrongNext,
@@ -229,6 +204,5 @@ __all__ = [
     "SuffixImpliesExist",
     "WeakClosure",
     "StrongClosure",
-    "NegStrongClosure",
     "psl_expr_iter",
 ]

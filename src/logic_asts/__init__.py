@@ -181,7 +181,7 @@ def is_psl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
             or isinstance(expr, sere.Concat | sere.Fusion | sere.Alt | sere.Inter | sere.Repeat)
             or isinstance(
                 expr,
-                psl.SuffixImpliesUniv | psl.SuffixImpliesExist | psl.WeakClosure | psl.StrongClosure | psl.NegStrongClosure,
+                psl.SuffixImpliesUniv | psl.SuffixImpliesExist | psl.WeakClosure | psl.StrongClosure,
             )
             for expr in obj.iter_subtree()
         )
