@@ -27,11 +27,14 @@ basedpyright = "*"
 ipython = "*"
 rich = "*"
 mypy = "*"
-pyrefly = "*"
 ruff = "*"
 just = "*"
+
+[feature.dev.pypi-dependencies]
 ty = "*"
 zuban = "*"
+ruff = "*"
+pyrefly = "*"
 
 [environments]
 default = { features = ["dev", "test", "docs"], solve-group = "default" }
