@@ -1,4 +1,4 @@
-%import .base (unary)
+%import .base (bool_term)
 
 start: sere
 
@@ -19,7 +19,7 @@ start: sere
      | "first_match" "(" sere ")" -> first_match
      | bool_atom
 
-bool_atom: unary
+bool_atom: bool_term
 
 star_repeat_suffix: "[*" range "]" -> star_range
                   | "[*" "]"       -> star_unbounded

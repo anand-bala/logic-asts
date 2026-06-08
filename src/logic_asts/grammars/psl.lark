@@ -8,8 +8,11 @@ start: pformula
 // Allow closures and bindings as atoms inside LTL operators
 // (so G {a} and G {r}[]-> f parse). Putting these in ?unary makes them
 // reachable both as top-level pformula (via expr) and under LTL operators.
-%extend ?unary: "!" "{" sere "}"               -> neg_weak_closure
-              | "{" sere "}" "[]->"  unary     -> suffix_implies_univ
+// Note: a negated closure like "!{r}" is handled by base negation over the
+// closure rules below ("!" unary, with unary -> weak_closure), which yields the
+// same Not(WeakClosure(...)). A dedicated "!" "{" sere "}" alternative here
+// would be redundant and collides with that path under LALR, so it is omitted.
+%extend ?unary: "{" sere "}" "[]->"  unary     -> suffix_implies_univ
               | "{" sere "}" "<>->"  unary     -> suffix_implies_exist
               | "{" sere "}" "[]=>"  unary     -> suffix_implies_univ_then
               | "{" sere "}" "<>=>"  unary     -> suffix_implies_exist_then

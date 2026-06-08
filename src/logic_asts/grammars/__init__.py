@@ -9,7 +9,7 @@ from pathlib import Path
 from lark import Token, Transformer, v_args
 from lark.visitors import merge_transformers
 
-from logic_asts.base import Equiv, Implies, Literal, Not, Variable, Xor
+from logic_asts.base import Equiv, Implies, Literal, Variable, Xor
 from logic_asts.ltl import (
     Always,
     Eventually,
@@ -501,9 +501,6 @@ class PslTransform(Transformer[Token, Expr]):
 
     def strong_closure(self, sere: Expr) -> Expr:
         return StrongClosure(typing.cast(SEREExpr[str], sere))
-
-    def neg_weak_closure(self, sere: Expr) -> Expr:
-        return Not(WeakClosure(typing.cast(SEREExpr[str], sere)))
 
 
 @enum.unique

@@ -22,6 +22,19 @@ start: expr
      | IDENTIFIER
      | "(" expr ")"
 
+// A parenthesis-free Boolean term: a constant/proposition under "!", with no
+// "(" expr ")" alternative and therefore no reachable &/| operator chain. The
+// base grammar does not use this itself (its own `atom` handles grouping); it
+// exists for SERE to import as its Boolean leaf. SERE overloads "&"/"&&"/"|"
+// as its own operators, so reusing base's `unary` (which reaches `product`'s
+// boolean "&") creates an LALR reduce/reduce conflict. Importing this leaf
+// instead keeps the conflicting operator chain out of the SERE grammar while
+// still routing constants/propositions/negation through BaseTransform.
+?bool_term: bool_factor
+          | "!" bool_term                -> neg
+?bool_factor: (TRUE | FALSE)
+            | IDENTIFIER
+
 _XOR_OP: /xor(?!\d)/
 
 // Priority .2 so these out-rank inline single-letter operator keywords like
