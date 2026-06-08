@@ -274,10 +274,17 @@ def parse_expr(
     """
     syntax = SupportedGrammars(syntax)
 
+    # These grammars are LALR-compatible (efficient deterministic parsing);
+    # sere/psl still need the Earley parser until their grammar conflicts are
+    # resolved.
+    _LALR_GRAMMARS = {"base", "ltl", "strel", "stl_go"}
+    parser = "lalr" if str(syntax.value) in _LALR_GRAMMARS else "earley"
+
     grammar = Lark.open_from_package(
         __name__,
         f"{str(syntax.value)}.lark",
         ["grammars"],
+        parser=parser,
     )
     transformer = syntax.get_transformer()
     assert isinstance(transformer, Transformer), f"{transformer=}"

@@ -23,13 +23,20 @@ start: expr
                  | _F_OP [strong_time_interval] unary  -> eventually
                  | _X_OP next_modifier unary           -> next
 
-_G_OP: /G(?!\d)/
-_F_OP: /F(?!\d)/
-_X_OP: /X(?!\d)/
-_U_OP: /U(?!\d)/
-_W_OP: /W(?!\d)/
-_R_OP: /R(?!\d)/
-_M_OP: /M(?!\d)/
+// Priority .2 so these out-rank CNAME (priority 0) at the lexer level: when a
+// run like "Foo" or "Gp" matches both an operator terminal (length 1) and
+// CNAME (the whole run), Lark resolves the tie by priority *before* match
+// length, so the leading F/G/X/... lexes as the operator and the remainder as
+// an atomic proposition (Spot's "F oo", "G p" reading). The (?!\d) lookahead
+// still hands "F1"/"X1" to CNAME as single atomic propositions. This lets the
+// LALR contextual lexer reproduce what Earley's dynamic lexer does by search.
+_G_OP.2: /G(?!\d)/
+_F_OP.2: /F(?!\d)/
+_X_OP.2: /X(?!\d)/
+_U_OP.2: /U(?!\d)/
+_W_OP.2: /W(?!\d)/
+_R_OP.2: /R(?!\d)/
+_M_OP.2: /M(?!\d)/
 
 // Next modifier: empty (weak), [n] (weak n-steps), [!] (strong), [n!] (strong n-steps)
 ?next_modifier: "[" INT "!" "]"  -> strong_step
