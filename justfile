@@ -35,11 +35,13 @@ mypy-check:
 pyright-check:
     basedpyright
 
-# [parallel]
-type-check: mypy-check
+[no-cd]
+[private]
+zuban-check:
+    zuban check
 
-# pyright-check
-# ty-check pyrefly-check
+[parallel]
+type-check: zuban-check pyright-check
 
 # Run both formatting and type checking
 [no-cd]

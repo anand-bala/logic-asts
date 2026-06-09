@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
-test = ["pytest", "pytest-mypy", "hypothesis", "pytest-timeout"]
+test = ["pytest", "hypothesis", "pytest-timeout"]
 docs = ["myst-parser", "sphinx"]
 dev = [
   "basedpyright",
@@ -37,7 +37,7 @@ exclude-newer = "30 days"
 # managed = false
 
 [tool.pytest]
-addopts = ["--import-mode=importlib", "--doctest-modules", "--mypy"]
+addopts = ["--import-mode=importlib", "--doctest-modules"]
 testpaths = ["tests", "src"]
 
 [tool.zuban]
@@ -53,6 +53,7 @@ files = ["src/", "tests/"]
 exclude = ["^build/"]
 show_error_codes = true
 namespace_packages = false
+mypy_path = ["$MYPY_CONFIG_FILE_DIR/typings/"]
 
 [[tool.mypy.overrides]]
 module = ["spot"]

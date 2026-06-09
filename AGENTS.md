@@ -12,7 +12,11 @@ Uses `pixi` for local venv management, `just` as the task runner,
 ## Running Commands
 
 The development shell already has the project virtual environment activated,
-so `pytest`, `mypy`, `ruff`, `sphinx-build`, etc. are on `PATH` directly.
+so `pytest`, `zuban`, `basedpyright`, `ruff`, `sphinx-build`, etc. are on
+`PATH` directly.
+
+For type checking, use `zuban check` and `basedpyright`, not `mypy`. These
+two are the source of truth; ignore `mypy`-only complaints.
 
 **Do not** prefix commands with `uv run`, `pixi run`, `poetry run`,
 or similar runner wrappers —
@@ -22,13 +26,14 @@ that still shows wrapped commands.
 Use:
 
     pytest tests/test_sere.py
-    mypy --strict src tests
+    zuban check src tests
+    basedpyright src tests
     ruff check src tests
 
 Not:
 
     pixi run pytest tests/test_sere.py    # wrong
-    uv run mypy --strict src tests        # wrong
+    uv run zuban check src tests          # wrong
 
 If a tool is missing, stop and tell the user rather than trying to bootstrap
 or reinstall the environment.
@@ -41,7 +46,7 @@ All commands are run via `uv` and the `just` task runner.
 | ---------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | Install / sync deps    | `just dev` or `uv sync --all-packages --frozen --inexact --dev`                  | Sets up venv                                          |
 | Format                 | `just fmt`                                                                       | Runs `ruff format` + `ruff check --fix`               |
-| Type check (all)       | `just type-check`                                                                | Runs `ty`, `pyrefly`, and `mypy --strict` in parallel |
+| Type check             | `zuban check src tests` and `basedpyright src tests`                             | Sources of truth for typing; do not use `mypy`        |
 | Lint (fmt + types)     | `just lint`                                                                      | Combines `fmt` and `type-check`                       |
 | Run all tests          | `just test`                                                                      | Runs `pytest --lf` (last-failed first)                |
 | Run full test suite    | `pytest`                                                                         | No `--lf` flag, runs everything                       |
@@ -49,10 +54,6 @@ All commands are run via `uv` and the `just` task runner.
 | Run a single test      | `pytest tests/test_base_logic.py::TestAtomicExpressions::test_variable_creation` | `file::Class::method`                                 |
 | Run tests with keyword | `pytest -k "test_and_flattening"`                                                | Filter by name substring                              |
 | Doctest collection     | Enabled via `--doctest-modules` in pytest config                                 | Doctests in `src/` are collected                      |
-| Mypy only              | `mypy --strict`                                                                  | Strict mode; targets `src/` and `tests/`              |
-
-**CI runs** : `ruff lint` , `ruff format --check` , `pytest` ,
-`mypy --strict` across Python 3.10–3.13.
 
 ## Code Style Guidelines
 
@@ -65,7 +66,8 @@ All commands are run via `uv` and the `just` task runner.
 
 ## Type Annotations
 
-- **Full strict mypy** is enforced - every function and method must be fully annotated.
+- **Full strict typing** is enforced (verified with `zuban check` and
+  `basedpyright`, not `mypy`) - every function and method must be fully annotated.
 - Explicit `-> None` on all void-returning functions.
 - Use `typing.TypeAlias` for union type aliases.
 - Use `typing.TypeGuard` / `typing_extensions.TypeIs` for runtime type-narrowing
