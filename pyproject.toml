@@ -5,7 +5,7 @@ description = "Grammars and parsers for various logic"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Anand Balakrishnan", email = "anandbala1597@gmail.com" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = ["attrs>=25.3.0", "lark>=1.2.2", "typing-extensions>=4.13.0"]
 
 [dependency-groups]
@@ -63,7 +63,7 @@ extend-ignore = ["F722", "PYI041"]
 "*.pyi" = ["B", "E501", "E701"]
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.12"
 include = ["src", "tests"]
 pythonPlatform = "All"
 reportUnknownMemberType = false
