@@ -46,7 +46,7 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
@@ -217,16 +217,26 @@ class Next(Expr, Generic[ChildExpr]):
         return f"(X{step_str} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         arg = self.arg.expand()
         if self.steps is None:
-            return Next(arg)
+            return cast(ChildExpr, Next(arg))
         else:
             assert isinstance(self.steps, int)
-            expr = arg
+            expr: Expr = arg
             for _ in range(self.steps):
                 expr = Next(expr)
-            return expr
+            return cast(ChildExpr, expr)
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # !X f = X[!] !f (strong-X dual of weak-X)
+            return cast(ChildExpr, StrongNext(self.arg.to_nnf(negate=True, expand=False)))
+        # X f = X f
+        return cast(ChildExpr, Next(self.arg.to_nnf(expand=False)))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -283,16 +293,26 @@ class StrongNext(Expr, Generic[ChildExpr]):
         return f"(X{step_str} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         arg = self.arg.expand()
         if self.steps is None:
-            return StrongNext(arg)
+            return cast(ChildExpr, StrongNext(arg))
         else:
             assert isinstance(self.steps, int)
-            expr = arg
+            expr: Expr = arg
             for _ in range(self.steps):
                 expr = StrongNext(expr)
-            return expr
+            return cast(ChildExpr, expr)
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # !X[!] f = X !f (weak-X dual of strong-X)
+            return cast(ChildExpr, Next(self.arg.to_nnf(negate=True, expand=False)))
+        # X[!] f = X[!] f
+        return cast(ChildExpr, StrongNext(self.arg.to_nnf(expand=False)))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -344,33 +364,43 @@ class Always(Expr, Generic[ChildExpr]):
         return f"(G{self.interval.format(strong=self.strong)} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         # Choose Next or StrongNext based on self.strong
         next_op = StrongNext if self.strong else Next
 
         match self.interval:
             case TimeInterval(None, None) | TimeInterval(0, None):
                 # Unbounded G
-                return Always(self.arg.expand(), strong=self.strong)
+                return cast(ChildExpr, Always(self.arg.expand(), strong=self.strong))
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # G[0, t2]
                 arg = self.arg.expand()  # zuban: ignore[unreachable]
-                expr = arg
+                expr: Expr = arg
                 for _ in range(t2):
                     expr = expr & next_op(arg)
-                return expr
+                return cast(ChildExpr, expr)
             case TimeInterval(int(t1), None):
                 # G[t1, inf]
                 assert t1 > 0  # zuban: ignore[unreachable]
-                return next_op(Always(self.arg, strong=self.strong), t1).expand()
+                return cast(ChildExpr, next_op(Always(self.arg, strong=self.strong), t1).expand())
             case TimeInterval(int(t1), int(t2)):
                 # G[t1, t2]
                 assert t1 > 0  # zuban: ignore[unreachable]
                 # G[t1, t2] = X[t1] G[0,t2-t1] arg
                 # Nested nexts until t1
-                return next_op(Always(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand()
+                return cast(ChildExpr, next_op(Always(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand())
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! G x = F !x
+            return cast(ChildExpr, Eventually(self.arg.to_nnf(negate=True, expand=False), self.interval))
+        # G x = G x
+        return cast(ChildExpr, Always(self.arg.to_nnf(expand=False), self.interval))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -417,33 +447,43 @@ class Eventually(Expr, Generic[ChildExpr]):
         return f"(F{self.interval.format(strong=self.strong)} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         # Choose Next or StrongNext based on self.strong
         next_op = StrongNext if self.strong else Next
 
         match self.interval:
             case TimeInterval(None, None) | TimeInterval(0, None):
                 # Unbounded F
-                return Eventually(self.arg.expand(), strong=self.strong)
+                return cast(ChildExpr, Eventually(self.arg.expand(), strong=self.strong))
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # F[0, t2]
                 arg = self.arg.expand()  # zuban: ignore[unreachable]
-                expr = arg
+                expr: Expr = arg
                 for _ in range(t2):
                     expr = expr & next_op(arg)
-                return expr
+                return cast(ChildExpr, expr)
             case TimeInterval(int(t1), None):
                 # F[t1, inf]
                 assert t1 > 0  # zuban: ignore[unreachable]
-                return next_op(Eventually(self.arg, strong=self.strong), t1).expand()
+                return cast(ChildExpr, next_op(Eventually(self.arg, strong=self.strong), t1).expand())
             case TimeInterval(int(t1), int(t2)):
                 # F[t1, t2]
                 assert t1 > 0  # zuban: ignore[unreachable]
                 # F[t1, t2] = X[t1] F[0,t2-t1] arg
                 # Nested nexts until t1
-                return next_op(Eventually(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand()
+                return cast(ChildExpr, next_op(Eventually(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand())
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! F x = G !x
+            return cast(ChildExpr, Always(self.arg.to_nnf(negate=True, expand=False), self.interval))
+        # F x = F x
+        return cast(ChildExpr, Eventually(self.arg.to_nnf(expand=False), self.interval))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -492,25 +532,42 @@ class Until(Expr, Generic[ChildExpr]):
         return f"({self.lhs} U{self.interval or ''} {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         new_lhs = self.lhs.expand()
         new_rhs = self.rhs.expand()
         match self.interval:
             case TimeInterval(None | 0, None):
                 # Just make an unbounded one here
-                return Until(new_lhs, new_rhs)
+                return cast(ChildExpr, Until(new_lhs, new_rhs))
             case TimeInterval(t1, None):  # Unbounded end
-                return Always(  # zuban: ignore[unreachable]
+                return cast(ChildExpr, Always(  # zuban: ignore[unreachable]
                     arg=Until(lhs=new_lhs, rhs=new_rhs),
                     interval=TimeInterval(0, t1),
-                ).expand()
+                ).expand())
             case TimeInterval(t1, _):
                 z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
                 until_interval = TimeInterval(t1, None)
                 z2 = Until(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
-                return z1 & z2
+                return cast(ChildExpr, z1 & z2)
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! (f U g) = (!f) R (!g)
+            return cast(ChildExpr, Release(
+                self.lhs.to_nnf(negate=True, expand=False),
+                self.rhs.to_nnf(negate=True, expand=False),
+                self.interval,
+            ))
+        return cast(ChildExpr, Until(
+            self.lhs.to_nnf(expand=False),
+            self.rhs.to_nnf(expand=False),
+            self.interval,
+        ))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -561,25 +618,42 @@ class WeakUntil(Expr, Generic[ChildExpr]):
         return f"({self.lhs} W{self.interval or ''} {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         new_lhs = self.lhs.expand()
         new_rhs = self.rhs.expand()
         match self.interval:
             case TimeInterval(None | 0, None):
                 # Just make an unbounded one here
-                return WeakUntil(new_lhs, new_rhs)
+                return cast(ChildExpr, WeakUntil(new_lhs, new_rhs))
             case TimeInterval(t1, None):  # Unbounded end
-                return Always(  # zuban: ignore[unreachable]
+                return cast(ChildExpr, Always(  # zuban: ignore[unreachable]
                     arg=WeakUntil(lhs=new_lhs, rhs=new_rhs),
                     interval=TimeInterval(0, t1),
-                ).expand()
+                ).expand())
             case TimeInterval(t1, _):
                 z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
                 until_interval = TimeInterval(t1, None)
                 z2 = WeakUntil(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
-                return z1 & z2
+                return cast(ChildExpr, z1 & z2)
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! (f W g) = (!f) M (!g)
+            return cast(ChildExpr, StrongRelease(
+                self.lhs.to_nnf(negate=True, expand=False),
+                self.rhs.to_nnf(negate=True, expand=False),
+                self.interval,
+            ))
+        return cast(ChildExpr, WeakUntil(
+            self.lhs.to_nnf(expand=False),
+            self.rhs.to_nnf(expand=False),
+            self.interval,
+        ))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -640,9 +714,26 @@ class Release(Expr, Generic[ChildExpr]):
         return f"({self.lhs} R{self.interval or ''} {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         # Expands as the dual of Until
-        return Not(Until(~self.lhs, ~self.rhs, self.interval))
+        return cast(ChildExpr, Not(Until(~self.lhs, ~self.rhs, self.interval)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! (f R g) = (!f) U (!g)
+            return cast(ChildExpr, Until(
+                self.lhs.to_nnf(negate=True, expand=False),
+                self.rhs.to_nnf(negate=True, expand=False),
+                self.interval,
+            ))
+        return cast(ChildExpr, Release(
+            self.lhs.to_nnf(expand=False),
+            self.rhs.to_nnf(expand=False),
+            self.interval,
+        ))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -700,16 +791,33 @@ class StrongRelease(Expr, Generic[ChildExpr]):
         return f"({self.lhs} M{self.interval or ''} {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         new_lhs = self.lhs.expand()
         new_rhs = self.rhs.expand()
         match self.interval:
             case TimeInterval(None | 0, None):
                 # Unbounded: return StrongRelease with expanded operands
-                return StrongRelease(new_lhs, new_rhs)
+                return cast(ChildExpr, StrongRelease(new_lhs, new_rhs))
             case _:
                 # Bounded: use dual form Not(WeakUntil(~lhs, ~rhs, interval))
-                return Not(WeakUntil(~new_lhs, ~new_rhs, self.interval))  # zuban: ignore[unreachable]
+                return cast(ChildExpr, Not(WeakUntil(~new_lhs, ~new_rhs, self.interval)))  # zuban: ignore[unreachable]
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # ! (f M g) = (!f) W (!g)
+            return cast(ChildExpr, WeakUntil(
+                self.lhs.to_nnf(negate=True, expand=False),
+                self.rhs.to_nnf(negate=True, expand=False),
+                self.interval,
+            ))
+        return cast(ChildExpr, StrongRelease(
+            self.lhs.to_nnf(expand=False),
+            self.rhs.to_nnf(expand=False),
+            self.interval,
+        ))
 
     @override
     def children(self) -> Iterator[ChildExpr]:

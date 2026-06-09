@@ -16,7 +16,6 @@ import logic_asts
 import logic_asts.ltl as ltl
 from logic_asts.base import Not, Variable
 from logic_asts.spec import Expr
-from logic_asts.utils import to_nnf
 
 
 class TestASTConstruction:
@@ -132,8 +131,8 @@ class TestNNFRules:
         q = Variable("q")
         # Create a mixed formula with multiple operators
         expr = ~(ltl.Until(ltl.Next(p), ltl.WeakUntil(q, ~p)))
-        nnf1 = to_nnf(expr)
-        nnf2 = to_nnf(nnf1)
+        nnf1 = expr.to_nnf()
+        nnf2 = nnf1.to_nnf()
         assert nnf1 == nnf2, "NNF should be idempotent"
 
 

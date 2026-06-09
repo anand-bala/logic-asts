@@ -15,7 +15,7 @@ are out of scope for this module.
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, cast, final
+from typing import Generic, TypeVar, final
 
 from attrs import field, frozen
 from typing_extensions import override
@@ -116,9 +116,19 @@ class SuffixImpliesUniv(Expr, Generic[Var]):
     @override
     def expand(self) -> SuffixImpliesUniv[Var]:
         return SuffixImpliesUniv(
-            cast(SEREExpr[Var], self.sere.expand()),
-            cast(PSLFormula[Var], self.formula.expand()),
+            self.sere.expand(),
+            self.formula.expand(),
         )
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> PSLFormula[Var]:
+        if expand:
+            return self.expand().to_nnf(negate=negate, expand=False)
+        new_formula = self.formula.to_nnf(negate=negate, expand=False)
+        if negate:
+            # !({r}[]-> f) = {r}<>-> !f
+            return SuffixImpliesExist(self.sere, new_formula)
+        return SuffixImpliesUniv(self.sere, new_formula)
 
     @override
     def horizon(self) -> int | float:
@@ -145,9 +155,19 @@ class SuffixImpliesExist(Expr, Generic[Var]):
     @override
     def expand(self) -> SuffixImpliesExist[Var]:
         return SuffixImpliesExist(
-            cast(SEREExpr[Var], self.sere.expand()),
-            cast(PSLFormula[Var], self.formula.expand()),
+            self.sere.expand(),
+            self.formula.expand(),
         )
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> PSLFormula[Var]:
+        if expand:
+            return self.expand().to_nnf(negate=negate, expand=False)
+        new_formula = self.formula.to_nnf(negate=negate, expand=False)
+        if negate:
+            # !({r}<>-> f) = {r}[]-> !f
+            return SuffixImpliesUniv(self.sere, new_formula)
+        return SuffixImpliesExist(self.sere, new_formula)
 
     @override
     def horizon(self) -> int | float:
@@ -171,7 +191,14 @@ class WeakClosure(Expr, Generic[Var]):
 
     @override
     def expand(self) -> WeakClosure[Var]:
-        return WeakClosure(cast(SEREExpr[Var], self.sere.expand()))
+        return WeakClosure(self.sere.expand())
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> PSLFormula[Var]:
+        if expand:
+            return self.expand().to_nnf(negate=negate, expand=False)
+        # No NNF dual for a weak closure; block negation from passing through.
+        return Not(self) if negate else self
 
     @override
     def horizon(self) -> int | float:
@@ -195,7 +222,14 @@ class StrongClosure(Expr, Generic[Var]):
 
     @override
     def expand(self) -> SuffixImpliesExist[Var]:
-        return SuffixImpliesExist(cast(SEREExpr[Var], self.sere.expand()), Literal(True))
+        return SuffixImpliesExist(self.sere.expand(), Literal(True))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> PSLFormula[Var]:
+        if expand:
+            return self.expand().to_nnf(negate=negate, expand=False)
+        # No NNF dual for a strong closure; block negation from passing through.
+        return Not(self) if negate else self
 
     @override
     def horizon(self) -> int | float:

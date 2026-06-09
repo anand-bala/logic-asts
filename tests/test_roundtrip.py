@@ -138,8 +138,8 @@ def sere_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
                 st.integers(min_value=0, max_value=4),
                 st.one_of(st.none(), st.integers(min_value=0, max_value=6)),
             )
-            .filter(lambda t: t[2] is None or t[1] <= t[2])
-            .map(lambda t: Repeat(t[0], t[1], t[2])),
+            .filter(lambda t: t[2] is None or t[1] <= t[2])  # zuban: ignore[index]
+            .map(lambda t: Repeat(t[0], t[1], t[2])),  # zuban: ignore[index]
         ),
         max_leaves=max_leaves,
     )
@@ -216,7 +216,7 @@ def test_sere_extended_repetition_roundtrip(src: str) -> None:
 
 
 def psl_strategy(max_leaves: int = 8) -> st.SearchStrategy[Expr]:
-    sere = sere_strategy(max_leaves=4)
+    sere = sere_strategy(max_leaves=max_leaves)
     formulas = _bool_atom_strategy()
 
     return st.one_of(

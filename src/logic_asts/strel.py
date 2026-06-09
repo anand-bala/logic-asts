@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
@@ -134,12 +134,17 @@ class Everywhere(Expr, Generic[ChildExpr]):
         return f"(everywhere{dist_fn}{self.interval} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
-        return Everywhere(self.arg.expand(), self.interval, self.dist_fn)
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, Everywhere(self.arg.expand(), self.interval, self.dist_fn))
 
     @override
-    def to_nnf(self) -> Expr:
-        return Everywhere(self.arg.to_nnf(), self.interval, self.dist_fn)
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # !(E A) = E S (negate dual: Everywhere to Somewhere)
+            return cast(ChildExpr, Somewhere(self.arg.to_nnf(negate=True, expand=False), self.interval, self.dist_fn))
+        return cast(ChildExpr, Everywhere(self.arg.to_nnf(expand=False), self.interval, self.dist_fn))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -181,12 +186,17 @@ class Somewhere(Expr, Generic[ChildExpr]):
         return f"(somewhere{dist_fn}{self.interval} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
-        return Somewhere(self.arg.expand(), self.interval, self.dist_fn)
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, Somewhere(self.arg.expand(), self.interval, self.dist_fn))
 
     @override
-    def to_nnf(self) -> Expr:
-        return Somewhere(self.arg.to_nnf(), self.interval, self.dist_fn)
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            # !(E S) = E A (negate dual: Somewhere to Everywhere)
+            return cast(ChildExpr, Everywhere(self.arg.to_nnf(negate=True, expand=False), self.interval, self.dist_fn))
+        return cast(ChildExpr, Somewhere(self.arg.to_nnf(expand=False), self.interval, self.dist_fn))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -226,12 +236,21 @@ class Escape(Expr, Generic[ChildExpr]):
         return f"(escape{dist_fn}{self.interval} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
-        return Escape(self.arg.expand(), self.interval, self.dist_fn)
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, Escape(self.arg.expand(), self.interval, self.dist_fn))
 
     @override
-    def to_nnf(self) -> Expr:
-        return Escape(self.arg.to_nnf(), self.interval, self.dist_fn)
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        # TODO: there isn't a real dual to Escape
+        # prevent negation from passing through
+        arg_nnf = cast(Expr, self.arg).to_nnf(expand=False)
+        evolved: Expr = Escape(cast(ChildExpr, arg_nnf), self.interval, self.dist_fn)
+        if negate:
+            return cast(ChildExpr, Not(evolved))
+        else:
+            return cast(ChildExpr, evolved)
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -274,22 +293,27 @@ class Reach(Expr, Generic[ChildExpr]):
         return f"({self.lhs} reach{dist_fn}{self.interval} {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
-        return Reach(
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, Reach(
             lhs=self.lhs.expand(),
             rhs=self.rhs.expand(),
             interval=self.interval,
             dist_fn=self.dist_fn,
-        )
+        ))
 
     @override
-    def to_nnf(self) -> Expr:
-        return Reach(
-            lhs=self.lhs.to_nnf(),
-            rhs=self.rhs.to_nnf(),
-            interval=self.interval,
-            dist_fn=self.dist_fn,
-        )
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        # TODO: there isn't a real dual to Reach
+        # prevent negation from passing through
+        lhs_nnf = cast(Expr, self.lhs).to_nnf(expand=False)
+        rhs_nnf = cast(Expr, self.rhs).to_nnf(expand=False)
+        evolved: Expr = Reach(cast(ChildExpr, lhs_nnf), cast(ChildExpr, rhs_nnf), self.interval, self.dist_fn)
+        if negate:
+            return cast(ChildExpr, Not(evolved))
+        else:
+            return cast(ChildExpr, evolved)
 
     @override
     def children(self) -> Iterator[ChildExpr]:

@@ -314,7 +314,7 @@ class TestNNFConversion:
         p = Variable("p")
         expr = Not(Not(p))
         nnf = expr.to_nnf()
-        assert nnf == p
+        assert nnf == p  # type: ignore[comparison-overlap]
 
     def test_nnf_de_morgan_and(self) -> None:
         r"""Test De Morgan's law: ~(p & q) = ~p | ~q."""

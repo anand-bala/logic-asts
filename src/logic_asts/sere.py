@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
@@ -97,11 +97,19 @@ class Repeat(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         arg = self.arg.expand()
         if _normalize_low(self.low) == 1 and self.high == 1:
-            return arg
-        return Repeat(arg, self.low, self.high)
+            return cast(ChildExpr, arg)
+        return cast(ChildExpr, Repeat(arg, self.low, self.high))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -137,9 +145,17 @@ class Concat(Expr, Generic[ChildExpr]):
         yield from self.args
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         expanded = tuple(a.expand() for a in self.args)
-        return Concat(_flatten_same_kind(Concat, expanded))
+        return cast(ChildExpr, Concat(_flatten_same_kind(Concat, expanded)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -162,9 +178,17 @@ class Fusion(Expr, Generic[ChildExpr]):
         yield from self.args
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         expanded = tuple(a.expand() for a in self.args)
-        return Fusion(_flatten_same_kind(Fusion, expanded))
+        return cast(ChildExpr, Fusion(_flatten_same_kind(Fusion, expanded)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -187,9 +211,17 @@ class Alt(Expr, Generic[ChildExpr]):
         yield from self.args
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         expanded = tuple(a.expand() for a in self.args)
-        return Alt(_flatten_same_kind(Alt, expanded))
+        return cast(ChildExpr, Alt(_flatten_same_kind(Alt, expanded)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -212,9 +244,17 @@ class Inter(Expr, Generic[ChildExpr]):
         yield from self.args
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         expanded = tuple(a.expand() for a in self.args)
-        return Inter(_flatten_same_kind(Inter, expanded))
+        return cast(ChildExpr, Inter(_flatten_same_kind(Inter, expanded)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -246,9 +286,17 @@ class NLMInter(Expr, Generic[ChildExpr]):
         yield from self.args
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         expanded = tuple(a.expand() for a in self.args)
-        return NLMInter(_flatten_same_kind(NLMInter, expanded))
+        return cast(ChildExpr, NLMInter(_flatten_same_kind(NLMInter, expanded)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -291,8 +339,16 @@ class Complement(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
-        return Complement(self.arg.expand())
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, Complement(self.arg.expand()))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return self.arg
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -322,8 +378,16 @@ class FirstMatch(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
-        return FirstMatch(self.arg.expand())
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, FirstMatch(self.arg.expand()))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -376,18 +440,18 @@ class FusionRepeat(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         e = self.arg.expand()
         lo = _normalize_low(self.low)
         hi = self.high
         if hi is None:
-            return FusionRepeat(e, self.low, None)
+            return cast(ChildExpr, FusionRepeat(e, self.low, None))
         if lo == 0 and hi == 0:
-            return Literal(True)
+            return cast(ChildExpr, Literal(True))
         if lo == 1 and hi == 1:
-            return e
+            return cast(ChildExpr, e)
         if lo == hi:
-            return Fusion(tuple(e for _ in range(lo)))
+            return cast(ChildExpr, Fusion(tuple(e for _ in range(lo))))
         parts: list[Expr] = []
         for k in range(lo, hi + 1):
             if k == 0:
@@ -396,7 +460,15 @@ class FusionRepeat(Expr, Generic[ChildExpr]):
                 parts.append(e)
             else:
                 parts.append(Fusion(tuple(e for _ in range(k))))
-        return Alt(tuple(parts))
+        return cast(ChildExpr, Alt(tuple(parts)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -451,7 +523,7 @@ class GotoRepeat(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         # Preserve operand identity in the expansion: do NOT call .expand()
         # on the outer Repeat, because Concat.expand would flatten a SERE
         # operand ``r`` (which may itself be a Concat) into the surrounding
@@ -461,8 +533,16 @@ class GotoRepeat(Expr, Generic[ChildExpr]):
         body = Concat((Repeat(Complement(e), 0, None), e))
         lo = _normalize_low(self.low)
         if lo == 1 and self.high == 1:
-            return body
-        return Repeat(body, self.low, self.high)
+            return cast(ChildExpr, body)
+        return cast(ChildExpr, Repeat(body, self.low, self.high))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:
@@ -515,14 +595,22 @@ class EqualRepeat(Expr, Generic[ChildExpr]):
         yield self.arg
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         # Preserve operand identity by reusing GotoRepeat.expand (which
         # already avoids the flattening trap) and tacking on the
         # complement-closure tail without re-flattening through
         # Concat.expand.
         goto_part = GotoRepeat(self.arg, self.low, self.high).expand()
         tail = Repeat(Complement(self.arg.expand()), 0, None)
-        return Concat((goto_part, tail))
+        return cast(ChildExpr, Concat((goto_part, tail)))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        if negate:
+            return cast(ChildExpr, Complement(self))
+        return cast(ChildExpr, self)
 
     @override
     def horizon(self) -> int | float:

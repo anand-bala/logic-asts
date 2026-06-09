@@ -18,7 +18,6 @@ from logic_asts.sere import (
     NLMInter,
     Repeat,
 )
-from logic_asts.utils import to_nnf
 
 
 class TestRepeat:
@@ -73,7 +72,7 @@ class TestRepeat:
     def test_expand_preserves_general_form(self) -> None:
         a = Variable("a")
         r = Repeat(a, 0, None)
-        assert r.expand() == r
+        assert r.expand() == r  # type: ignore[comparison-overlap]
 
 
 class TestConcat:
@@ -182,7 +181,7 @@ def test_sere_expr_iter_rejects_non_sere_node() -> None:
     from logic_asts.ltl import Eventually
     from logic_asts.sere import SEREExpr, sere_expr_iter
 
-    bad: SEREExpr[str] = cast("SEREExpr[str]", Concat((Variable("a"), Eventually(Variable("b")))))
+    bad: SEREExpr[str] = cast(SEREExpr[str], Concat((Variable("a"), Eventually(Variable("b")))))
     with pytest.raises(TypeError):
         list(sere_expr_iter(bad))
 
@@ -224,7 +223,7 @@ class TestComplement:
         a, b, c = Variable("a"), Variable("b"), Variable("c")
         # Inner NLMInter flattens via NLMInter.expand(), wrapped by Complement.
         inner = NLMInter((NLMInter((a, b)), c))
-        assert Complement(inner).expand() == Complement(NLMInter((a, b, c)))
+        assert Complement(inner).expand() == Complement(NLMInter((a, b, c)))  # type: ignore[comparison-overlap]
 
 
 class TestFirstMatch:
@@ -252,7 +251,7 @@ class TestFirstMatch:
     def test_expand_recurses(self) -> None:
         a, b, c = Variable("a"), Variable("b"), Variable("c")
         inner = NLMInter((NLMInter((a, b)), c))
-        assert FirstMatch(inner).expand() == FirstMatch(NLMInter((a, b, c)))
+        assert FirstMatch(inner).expand() == FirstMatch(NLMInter((a, b, c)))  # type: ignore[comparison-overlap]
 
 
 class TestFusionRepeat:
@@ -302,7 +301,7 @@ class TestFusionRepeat:
         from logic_asts.base import Literal
 
         a = Variable("a")
-        assert FusionRepeat(a, 0, 0).expand() == Literal(True)
+        assert FusionRepeat(a, 0, 0).expand() == Literal(True)  # type: ignore[comparison-overlap]
 
     def test_expand_one_one_collapses(self) -> None:
         a = Variable("a")
@@ -310,19 +309,19 @@ class TestFusionRepeat:
 
     def test_expand_point_k_uses_fusion(self) -> None:
         a = Variable("a")
-        assert FusionRepeat(a, 3, 3).expand() == Fusion((a, a, a))
+        assert FusionRepeat(a, 3, 3).expand() == Fusion((a, a, a))  # type: ignore[comparison-overlap]
 
     def test_expand_bounded_range_to_alt(self) -> None:
         from logic_asts.base import Literal
 
         a = Variable("a")
         expanded = FusionRepeat(a, 0, 2).expand()
-        assert expanded == Alt((Literal(True), a, Fusion((a, a))))
+        assert expanded == Alt((Literal(True), a, Fusion((a, a))))  # type: ignore[comparison-overlap]
 
     def test_expand_unbounded_stays_primitive(self) -> None:
         a = Variable("a")
         node = FusionRepeat(a, 0, None)
-        assert node.expand() == node
+        assert node.expand() == node  # type: ignore[comparison-overlap]
 
 
 class TestGotoRepeat:
@@ -368,7 +367,7 @@ class TestGotoRepeat:
         a = Variable("a")
         expanded = GotoRepeat(a, 1, 1).expand()
         expected = Concat((Repeat(Complement(a), 0, None), a))
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
     def test_expand_sere_operand(self) -> None:
         a, b = Variable("a"), Variable("b")
@@ -379,7 +378,7 @@ class TestGotoRepeat:
             2,
             3,
         )
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
 
 class TestEqualRepeat:
@@ -429,7 +428,7 @@ class TestEqualRepeat:
         goto_body = Repeat(Concat((Repeat(Complement(a), 0, None), a)), 2, 3)
         tail = Repeat(Complement(a), 0, None)
         expected = Concat((goto_body, tail))
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
 
 class TestSereParser:
@@ -709,74 +708,74 @@ class TestSereToNnf:
     def test_concat_no_negate_returns_unchanged(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = Concat((a, b))
-        assert to_nnf(expr) == expr
+        assert expr.to_nnf() == expr  # type: ignore[comparison-overlap]
 
     def test_concat_negate_wraps_in_complement(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = Concat((a, b))
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_fusion_negate_wraps_in_complement(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = Fusion((a, b))
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_alt_negate_wraps_in_complement(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = Alt((a, b))
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_inter_negate_wraps_in_complement(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = Inter((a, b))
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_nlm_inter_negate_wraps_in_complement(self) -> None:
         a, b = Variable("a"), Variable("b")
         expr = NLMInter((a, b))
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_repeat_negate_wraps_in_complement(self) -> None:
         a = Variable("a")
         expr = Repeat(a, 0, None)
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_goto_repeat_negate_complements_expanded(self) -> None:
         a = Variable("a")
         expr = GotoRepeat(a, 1, 1)
         expanded = expr.expand()
-        assert to_nnf(expr, negate=True) == Complement(expanded)
+        assert expr.to_nnf(negate=True) == Complement(expanded)  # type: ignore[comparison-overlap]
 
     def test_equal_repeat_negate_complements_expanded(self) -> None:
         a = Variable("a")
         expr = EqualRepeat(a, 0, None)
         expanded = expr.expand()
-        assert to_nnf(expr, negate=True) == Complement(expanded)
+        assert expr.to_nnf(negate=True) == Complement(expanded)  # type: ignore[comparison-overlap]
 
     def test_fusion_repeat_negate_wraps_in_complement(self) -> None:
         a = Variable("a")
         expr = FusionRepeat(a, 1, None)
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_first_match_negate_wraps_in_complement(self) -> None:
         a = Variable("a")
         expr = FirstMatch(a)
-        assert to_nnf(expr, negate=True) == Complement(expr)
+        assert expr.to_nnf(negate=True) == Complement(expr)  # type: ignore[comparison-overlap]
 
     def test_complement_no_negate_unchanged(self) -> None:
         a, b = Variable("a"), Variable("b")
         inner = Concat((a, b))
         expr = Complement(inner)
-        assert to_nnf(expr) == expr
+        assert expr.to_nnf() == expr  # type: ignore[comparison-overlap]
 
     def test_complement_negate_eliminates_double(self) -> None:
         a, b = Variable("a"), Variable("b")
         inner = Concat((a, b))
         expr = Complement(inner)
-        assert to_nnf(expr, negate=True) == inner
+        assert expr.to_nnf(negate=True) == inner
 
     def test_not_of_sere_via_invert(self) -> None:
         a, b = Variable("a"), Variable("b")
         inner = Concat((a, b))
         expr = ~inner
-        assert to_nnf(expr) == Complement(inner)
+        assert expr.to_nnf() == Complement(inner)

@@ -38,7 +38,7 @@ from __future__ import annotations
 import enum
 import math
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
@@ -285,15 +285,33 @@ class GraphIncoming(Expr, Generic[ChildExpr]):
         return f"(In^{{{self.weights},{self.quantifier}}}_{{{graphs_str},{self.edge_count}}} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         """Graph operators don't expand further; recursively expand subformula."""
-        return GraphIncoming(
+        return cast(ChildExpr, GraphIncoming(
             arg=self.arg.expand(),
             graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,
+        ))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        # TODO: unsure what the dual to these is
+        arg_nnf = cast(Expr, self.arg).to_nnf(expand=False)
+        evolved: Expr = GraphIncoming(
+            arg=cast(ChildExpr, arg_nnf),
+            graphs=frozenset(self.graphs),
+            edge_count=self.edge_count,
+            weights=self.weights,
+            quantifier=self.quantifier,
         )
+        if negate:
+            return cast(ChildExpr, Not(evolved))
+        else:
+            return cast(ChildExpr, evolved)
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -346,15 +364,33 @@ class GraphOutgoing(Expr, Generic[ChildExpr]):
         return f"(Out^{{{self.weights},{self.quantifier}}}_{{{graphs_str},{self.edge_count}}} {self.arg})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         """Graph operators don't expand further; recursively expand subformula."""
-        return GraphOutgoing(
+        return cast(ChildExpr, GraphOutgoing(
             arg=self.arg.expand(),
             graphs=frozenset(self.graphs),
             edge_count=self.edge_count,
             weights=self.weights,
             quantifier=self.quantifier,
+        ))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        # TODO: unsure what the dual to these is
+        arg_nnf = cast(Expr, self.arg).to_nnf(expand=False)
+        evolved: Expr = GraphOutgoing(
+            arg=cast(ChildExpr, arg_nnf),
+            graphs=frozenset(self.graphs),
+            edge_count=self.edge_count,
+            weights=self.weights,
+            quantifier=self.quantifier,
         )
+        if negate:
+            return cast(ChildExpr, Not(evolved))
+        else:
+            return cast(ChildExpr, evolved)
 
     @override
     def children(self) -> Iterator[ChildExpr]:

@@ -24,7 +24,7 @@ import re
 import typing
 from collections.abc import Hashable, Iterator
 from collections.abc import Set as AbstractSet
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import field, frozen
@@ -75,8 +75,15 @@ class Implies(Expr, Generic[ChildExpr]):
         return f"({self.lhs} -> {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
-        return ~self.lhs | self.rhs
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, ~self.lhs | self.rhs)
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        lhs, rhs = cast(Expr, self.lhs), cast(Expr, self.rhs)
+        return cast(ChildExpr, (~lhs | rhs).to_nnf(negate=negate, expand=False))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -110,10 +117,17 @@ class Equiv(Expr, Generic[ChildExpr]):
         return f"({self.lhs} <-> {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return (x | ~y) & (~x | y)
+        return cast(ChildExpr, (x | ~y) & (~x | y))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        x, y = cast(Expr, self.lhs), cast(Expr, self.rhs)
+        return cast(ChildExpr, ((x | ~y) & (~x | y)).to_nnf(negate=negate, expand=False))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -147,10 +161,17 @@ class Xor(Expr, Generic[ChildExpr]):
         return f"({self.lhs} ^ {self.rhs})"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return (x & ~y) | (~x & y)
+        return cast(ChildExpr, (x & ~y) | (~x & y))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        x, y = cast(Expr, self.lhs), cast(Expr, self.rhs)
+        return cast(ChildExpr, ((x & ~y) | (~x & y)).to_nnf(negate=negate, expand=False))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -185,11 +206,18 @@ class And(Expr, Generic[ChildExpr]):
         return "(" + " & ".join(str(arg) for arg in self.children()) + ")"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         acc: Expr = Literal(True)
         for a in self.args:
             acc = acc & a.expand()
-        return acc
+        return cast(ChildExpr, acc)
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        nnf_args = tuple(a.to_nnf(negate=negate, expand=False) for a in self.args)
+        return cast(ChildExpr, Or(nnf_args) if negate else And(nnf_args))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -229,11 +257,18 @@ class Or(Expr, Generic[ChildExpr]):
         return "(" + " | ".join(str(arg) for arg in self.children()) + ")"
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> ChildExpr:
         acc: Expr = Literal(False)
         for a in self.args:
             acc = acc | a.expand()
-        return acc
+        return cast(ChildExpr, acc)
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        nnf_args = tuple(a.to_nnf(negate=negate, expand=False) for a in self.args)
+        return cast(ChildExpr, And(nnf_args) if negate else Or(nnf_args))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -278,8 +313,14 @@ class Not(Expr, Generic[ChildExpr]):
         return self.arg
 
     @override
-    def expand(self) -> Expr:
-        return ~(self.arg.expand())
+    def expand(self) -> ChildExpr:
+        return cast(ChildExpr, ~(self.arg.expand()))
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
+        if expand:
+            return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
+        return cast(ChildExpr, self.arg.to_nnf(negate=not negate, expand=False))
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -317,8 +358,12 @@ class Variable(Expr, Generic[Var]):
         return _format_variable_name(self.name)
 
     @override
-    def expand(self) -> Expr:
+    def expand(self) -> Self:
         return self
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> Variable[Var] | Not[Variable[Var]]:
+        return Not(self) if negate else self
 
     @override
     def children(self) -> Iterator[Expr]:
@@ -380,6 +425,10 @@ class Literal(Expr):
     @override
     def expand(self) -> Self:
         return self
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> Literal:
+        return ~self if negate else self
 
     @override
     def children(self) -> Iterator[Expr]:

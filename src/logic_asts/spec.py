@@ -34,7 +34,8 @@ class Expr(ABC):
             An equivalent expression using only And, Or, Not, Variable, and Literal.
         """
 
-    def to_nnf(self) -> Expr:
+    @abstractmethod
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> Expr:
         r"""Convert to Negation Normal Form (NNF).
 
         NNF is a canonical form where negation appears only over atomic
@@ -45,12 +46,24 @@ class Expr(ABC):
 
         The result is logically equivalent to the original expression.
 
+        Args:
+            negate: When True, return the NNF of the *negation* of this
+                expression (negation is pushed down to atoms). Used internally
+                by the recursion; callers normally leave it False.
+            expand: When True (default), :meth:`expand` is applied first so that
+                derived/bounded operators are eliminated before NNF rewriting.
+                The recursion threads ``expand=False`` once the tree is expanded.
+
         Returns:
             An expression in NNF with negations only over atoms.
-        """
-        import logic_asts.utils
 
-        return logic_asts.utils.to_nnf(self)
+        Note:
+            Each concrete node class implements this with a precise ``ChildExpr``
+            (or leaf-specific) return type, so calling ``to_nnf()`` on a dialect
+            union (e.g. ``LTLExpr[AP]``) yields that union rather than bare
+            ``Expr``. Implementations push negation toward atoms using each
+            operator's NNF dual.
+        """
 
     @abstractmethod
     def children(self) -> Iterator[Expr]:
