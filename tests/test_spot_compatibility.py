@@ -85,7 +85,7 @@ def assert_spot_accepts(*formulas: str) -> None:
     formulas reported by ``ltlfilt --count`` must equal ``len(formulas)``.
     """
     if HAS_SPOT == "lib":
-        import spot  # pyright: ignore[reportMissingImports]
+        import spot  # zuban: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
 
         for formula in formulas:
             try:
@@ -132,7 +132,7 @@ def assert_spot_accepts_psl(*formulas: str) -> None:
     are wrapped in ``{...}!`` for the Spot check.
     """
     if HAS_SPOT == "lib":
-        import spot  # pyright: ignore[reportMissingImports]
+        import spot  # zuban: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
 
         for formula in formulas:
             try:

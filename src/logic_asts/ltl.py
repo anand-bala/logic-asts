@@ -874,24 +874,27 @@ def ltl_expr_iter(expr: LTLExpr[Var]) -> Iterator[LTLExpr[Var]]:
 
     """
     return iter(
-        ExprVisitor[LTLExpr[Var]](
-            (  # type: ignore[arg-type]
-                Next,
-                StrongNext,
-                Always,
-                Eventually,
-                Until,
-                WeakUntil,
-                Release,
-                StrongRelease,
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[LTLExpr[Var]]],
+                [
+                    Next,
+                    StrongNext,
+                    Always,
+                    Eventually,
+                    Until,
+                    WeakUntil,
+                    Release,
+                    StrongRelease,
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

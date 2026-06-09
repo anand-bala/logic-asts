@@ -60,69 +60,69 @@ class TestNNFRules:
     def test_nnf_negation_of_weak_next(self) -> None:
         """Test ~X p = X[!] ~p (strong-X dual of weak-X)."""
         p = Variable("p")
-        expr = ~ltl.Next(p)
+        expr: ltl.LTLExpr[str] = ~ltl.Next(p)
         nnf = expr.to_nnf()
-        expected = ltl.StrongNext(Not(p))
+        expected: ltl.LTLExpr[str] = ltl.StrongNext(Not(p))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_strong_next(self) -> None:
         """Test ~X[!] p = X ~p (weak-X dual of strong-X)."""
         p = Variable("p")
-        expr = ~ltl.StrongNext(p)
+        expr: ltl.LTLExpr[str] = ~ltl.StrongNext(p)
         nnf = expr.to_nnf()
-        expected = ltl.Next(Not(p))
+        expected: ltl.LTLExpr[str] = ltl.Next(Not(p))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_eventually(self) -> None:
         """Test ~F p = G ~p."""
         p = Variable("p")
-        expr = ~ltl.Eventually(p)
+        expr: ltl.LTLExpr[str] = ~ltl.Eventually(p)
         nnf = expr.to_nnf()
-        expected = ltl.Always(Not(p))
+        expected: ltl.LTLExpr[str] = ltl.Always(Not(p))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_always(self) -> None:
         """Test ~G p = F ~p."""
         p = Variable("p")
-        expr = ~ltl.Always(p)
+        expr: ltl.LTLExpr[str] = ~ltl.Always(p)
         nnf = expr.to_nnf()
-        expected = ltl.Eventually(Not(p))
+        expected: ltl.LTLExpr[str] = ltl.Eventually(Not(p))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_until(self) -> None:
         """Test ~(p U q) = (~p) R (~q)."""
         p = Variable("p")
         q = Variable("q")
-        expr = ~ltl.Until(p, q)
+        expr: ltl.LTLExpr[str] = ~ltl.Until(p, q)
         nnf = expr.to_nnf()
-        expected = ltl.Release(Not(p), Not(q))
+        expected: ltl.LTLExpr[str] = ltl.Release(Not(p), Not(q))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_weak_until(self) -> None:
         """Test ~(p W q) = (~p) M (~q)."""
         p = Variable("p")
         q = Variable("q")
-        expr = ~ltl.WeakUntil(p, q)
+        expr: ltl.LTLExpr[str] = ~ltl.WeakUntil(p, q)
         nnf = expr.to_nnf()
-        expected = ltl.StrongRelease(Not(p), Not(q))
+        expected: ltl.LTLExpr[str] = ltl.StrongRelease(Not(p), Not(q))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_release(self) -> None:
         """Test ~(p R q) = (~p) U (~q)."""
         p = Variable("p")
         q = Variable("q")
-        expr = ~ltl.Release(p, q)
+        expr: ltl.LTLExpr[str] = ~ltl.Release(p, q)
         nnf = expr.to_nnf()
-        expected = ltl.Until(Not(p), Not(q))
+        expected: ltl.LTLExpr[str] = ltl.Until(Not(p), Not(q))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_negation_of_strong_release(self) -> None:
         """Test ~(p M q) = (~p) W (~q)."""
         p = Variable("p")
         q = Variable("q")
-        expr = ~ltl.StrongRelease(p, q)
+        expr: ltl.LTLExpr[str] = ~ltl.StrongRelease(p, q)
         nnf = expr.to_nnf()
-        expected = ltl.WeakUntil(Not(p), Not(q))
+        expected: ltl.LTLExpr[str] = ltl.WeakUntil(Not(p), Not(q))
         assert nnf == expected, f"Expected {expected}, got {nnf}"
 
     def test_nnf_idempotence_mixed_formula(self) -> None:
@@ -130,7 +130,7 @@ class TestNNFRules:
         p = Variable("p")
         q = Variable("q")
         # Create a mixed formula with multiple operators
-        expr = ~(ltl.Until(ltl.Next(p), ltl.WeakUntil(q, ~p)))
+        expr: Expr = ~(ltl.Until(ltl.Next(p), ltl.WeakUntil(q, ~p)))
         nnf1 = expr.to_nnf()
         nnf2 = nnf1.to_nnf()
         assert nnf1 == nnf2, "NNF should be idempotent"
@@ -147,7 +147,7 @@ class TestExpandCorrectness:
         # Should be StrongNext(StrongNext(StrongNext(p)))
         assert isinstance(expanded, ltl.StrongNext)
         # Walk down and verify all are StrongNext
-        current: object = expanded
+        current: ltl.LTLExpr[str] = expanded
         depth = 0
         while isinstance(current, ltl.StrongNext):
             depth += 1
@@ -424,7 +424,7 @@ class TestNNFWithBoundedIntervals:
     def test_nnf_of_negated_bounded_eventually_strong_expands(self) -> None:
         """Test ~F[0,3!] p expands and converts to disjunction."""
         p = Variable("p")
-        expr = ~ltl.Eventually(p, ltl.TimeInterval(0, 3), strong=True)
+        expr: ltl.LTLExpr[str] = ~ltl.Eventually(p, ltl.TimeInterval(0, 3), strong=True)
         nnf = expr.to_nnf()
         # After expanding, ~F[0,3!] p should produce a disjunction
         # because F[0,3!] expands to (p | X[!] p | X[!] X[!] p | ...)
@@ -435,7 +435,7 @@ class TestNNFWithBoundedIntervals:
     def test_nnf_of_negated_bounded_always_weak_expands(self) -> None:
         """Test ~G[0,3] p expands and converts to disjunction."""
         p = Variable("p")
-        expr = ~ltl.Always(p, ltl.TimeInterval(0, 3), strong=False)
+        expr: ltl.LTLExpr[str] = ~ltl.Always(p, ltl.TimeInterval(0, 3), strong=False)
         nnf = expr.to_nnf()
         # After expanding, ~G[0,3] p should produce a disjunction
         # because G[0,3] expands to (p & X p & X X p & ...)

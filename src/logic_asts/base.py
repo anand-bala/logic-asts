@@ -76,7 +76,7 @@ class Implies(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        return cast(ChildExpr, ~self.lhs | self.rhs)
+        return ~self.lhs | self.rhs
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -120,7 +120,7 @@ class Equiv(Expr, Generic[ChildExpr]):
     def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return cast(ChildExpr, (x | ~y) & (~x | y))
+        return (x | ~y) & (~x | y)
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -164,7 +164,7 @@ class Xor(Expr, Generic[ChildExpr]):
     def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return cast(ChildExpr, (x & ~y) | (~x & y))
+        return (x & ~y) | (~x & y)
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -228,10 +228,10 @@ class And(Expr, Generic[ChildExpr]):
         return max(arg.horizon() for arg in self.args)
 
     @override
-    def __and__(self, other: Expr) -> And:
+    def __and__(self, other: Expr) -> Self:
         if isinstance(other, And):
-            return And(self.args + other.args)
-        return And(self.args + (other,))
+            return cast(Self, And(self.args + other.args))
+        return cast(Self, And(self.args + (other,)))
 
 
 @final
@@ -279,10 +279,10 @@ class Or(Expr, Generic[ChildExpr]):
         return max(arg.horizon() for arg in self.args)
 
     @override
-    def __or__(self, other: Expr) -> Or:
+    def __or__(self, other: Expr) -> Self:
         if isinstance(other, Or):
-            return Or(self.args + other.args)
-        return Or(self.args + (other,))
+            return cast(Self, Or(self.args + other.args))
+        return cast(Self, Or(self.args + (other,)))
 
 
 @final
@@ -308,9 +308,9 @@ class Not(Expr, Generic[ChildExpr]):
         return f"!{str(self.arg)}"
 
     @override
-    def __invert__(self) -> Expr:
+    def __invert__(self) -> Self:
         r"""Eliminate double negation: :math:`\neg(\neg\phi) = \phi`."""
-        return self.arg
+        return cast(Self, self.arg)
 
     @override
     def expand(self) -> ChildExpr:
@@ -403,24 +403,24 @@ class Literal(Expr):
         return Literal(not self.value)
 
     @override
-    def __and__(self, other: Expr) -> Expr:
+    def __and__(self, other: Expr) -> Self:
         if self.value is False:
             return self
         elif isinstance(other, Literal):
-            return Literal(self.value and other.value)
+            return cast(Self, Literal(self.value and other.value))
         else:
             # True & x = x
-            return other
+            return cast(Self, other)
 
     @override
-    def __or__(self, other: Expr) -> Expr:
+    def __or__(self, other: Expr) -> Self:
         if self.value is True:
             return self
         elif isinstance(other, Literal):
-            return Literal(self.value or other.value)
+            return cast(Self, Literal(self.value or other.value))
         else:
             # False | x = x
-            return other
+            return cast(Self, other)
 
     @override
     def expand(self) -> Self:
@@ -500,16 +500,19 @@ def bool_expr_iter(expr: BoolExpr[Var]) -> Iterator[BoolExpr[Var]]:
 
     """
     return iter(
-        ExprVisitor[BoolExpr[Var]](
-            (  # type: ignore[arg-type]
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[BoolExpr[Var]]],
+                [
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

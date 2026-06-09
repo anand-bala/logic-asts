@@ -287,13 +287,16 @@ class GraphIncoming(Expr, Generic[ChildExpr]):
     @override
     def expand(self) -> ChildExpr:
         """Graph operators don't expand further; recursively expand subformula."""
-        return cast(ChildExpr, GraphIncoming(
-            arg=self.arg.expand(),
-            graphs=frozenset(self.graphs),
-            edge_count=self.edge_count,
-            weights=self.weights,
-            quantifier=self.quantifier,
-        ))
+        return cast(
+            ChildExpr,
+            GraphIncoming(
+                arg=self.arg.expand(),
+                graphs=frozenset(self.graphs),
+                edge_count=self.edge_count,
+                weights=self.weights,
+                quantifier=self.quantifier,
+            ),
+        )
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -366,13 +369,16 @@ class GraphOutgoing(Expr, Generic[ChildExpr]):
     @override
     def expand(self) -> ChildExpr:
         """Graph operators don't expand further; recursively expand subformula."""
-        return cast(ChildExpr, GraphOutgoing(
-            arg=self.arg.expand(),
-            graphs=frozenset(self.graphs),
-            edge_count=self.edge_count,
-            weights=self.weights,
-            quantifier=self.quantifier,
-        ))
+        return cast(
+            ChildExpr,
+            GraphOutgoing(
+                arg=self.arg.expand(),
+                graphs=frozenset(self.graphs),
+                edge_count=self.edge_count,
+                weights=self.weights,
+                quantifier=self.quantifier,
+            ),
+        )
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -448,23 +454,26 @@ def stlgo_expr_iter(expr: STLGOExpr[Var]) -> Iterator[STLGOExpr[Var]]:
 
     """
     return iter(
-        ExprVisitor[STLGOExpr[Var]](
-            (  # type: ignore[arg-type]
-                GraphIncoming,
-                GraphOutgoing,
-                Next,
-                Always,
-                Eventually,
-                Until,
-                Release,
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[STLGOExpr[Var]]],
+                [
+                    GraphIncoming,
+                    GraphOutgoing,
+                    Next,
+                    Always,
+                    Eventually,
+                    Until,
+                    Release,
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

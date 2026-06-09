@@ -373,25 +373,28 @@ def strel_expr_iter(expr: STRELExpr[Var]) -> Iterator[STRELExpr[Var]]:
 
     """
     return iter(
-        ExprVisitor[STRELExpr[Var]](
-            (  # type: ignore[arg-type]
-                Everywhere,
-                Somewhere,
-                Reach,
-                Escape,
-                Next,
-                Always,
-                Eventually,
-                Until,
-                Release,
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[STRELExpr[Var]]],
+                [
+                    Everywhere,
+                    Somewhere,
+                    Reach,
+                    Escape,
+                    Next,
+                    Always,
+                    Eventually,
+                    Until,
+                    Release,
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

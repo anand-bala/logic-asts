@@ -645,27 +645,30 @@ type SEREExpr[Var: Hashable] = (
 def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
     """Post-order iterator over a SERE expression, validating dialect membership."""
     return iter(
-        ExprVisitor[SEREExpr[Var]](
-            (  # type: ignore[arg-type]
-                Concat,
-                Fusion,
-                Alt,
-                Inter,
-                NLMInter,
-                Complement,
-                FirstMatch,
-                FusionRepeat,
-                GotoRepeat,
-                EqualRepeat,
-                Repeat,
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[SEREExpr[Var]]],
+                [
+                    Concat,
+                    Fusion,
+                    Alt,
+                    Inter,
+                    NLMInter,
+                    Complement,
+                    FirstMatch,
+                    FusionRepeat,
+                    GotoRepeat,
+                    EqualRepeat,
+                    Repeat,
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

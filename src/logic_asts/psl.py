@@ -15,7 +15,7 @@ are out of scope for this module.
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, final
+from typing import Generic, TypeVar, cast, final
 
 from attrs import field, frozen
 from typing_extensions import override
@@ -86,7 +86,7 @@ valid in both a SERE slot and a PSL-formula slot, so they are
 deliberately omitted here."""
 
 
-def _validates_psl_formula(instance: object, attribute: object, value: object) -> None:
+def _validates_psl(instance: object, attribute: object, value: object) -> None:
     # Lazy import to break the circular dependency with logic_asts/__init__.py.
     from logic_asts import is_psl_expr
 
@@ -101,8 +101,8 @@ def _validates_psl_formula(instance: object, attribute: object, value: object) -
 class SuffixImpliesUniv(Expr, Generic[Var]):
     r"""``{r}[]-> f`` (universal suffix implication)."""
 
-    sere: SEREExpr[Var] = field(validator=_validates_sere)  # type: ignore[assignment]
-    formula: PSLFormula[Var] = field(validator=_validates_psl_formula)  # type: ignore[assignment]
+    sere: SEREExpr[Var] = field(validator=_validates_sere)
+    formula: PSLFormula[Var] = field(validator=_validates_psl)
 
     @override
     def __str__(self) -> str:
@@ -140,8 +140,8 @@ class SuffixImpliesUniv(Expr, Generic[Var]):
 class SuffixImpliesExist(Expr, Generic[Var]):
     r"""``{r}<>-> f`` (existential suffix implication)."""
 
-    sere: SEREExpr[Var] = field(validator=_validates_sere)  # type: ignore[assignment]
-    formula: PSLFormula[Var] = field(validator=_validates_psl_formula)  # type: ignore[assignment]
+    sere: SEREExpr[Var] = field(validator=_validates_sere)
+    formula: PSLFormula[Var] = field(validator=_validates_psl)
 
     @override
     def __str__(self) -> str:
@@ -179,7 +179,7 @@ class SuffixImpliesExist(Expr, Generic[Var]):
 class WeakClosure(Expr, Generic[Var]):
     r"""``{r}`` (weak closure)."""
 
-    sere: SEREExpr[Var] = field(validator=_validates_sere)  # type: ignore[assignment]
+    sere: SEREExpr[Var] = field(validator=_validates_sere)
 
     @override
     def __str__(self) -> str:
@@ -210,7 +210,7 @@ class WeakClosure(Expr, Generic[Var]):
 class StrongClosure(Expr, Generic[Var]):
     r"""``{r}!`` (strong closure)."""
 
-    sere: SEREExpr[Var] = field(validator=_validates_sere)  # type: ignore[assignment]
+    sere: SEREExpr[Var] = field(validator=_validates_sere)
 
     @override
     def __str__(self) -> str:
@@ -267,37 +267,40 @@ type PSLExpr[Var: Hashable] = PSLFormula[Var] | SEREExpr[Var]
 def psl_expr_iter(expr: PSLExpr[Var]) -> Iterator[PSLExpr[Var]]:
     """Post-order iterator over a PSL expression, validating dialect membership."""
     return iter(
-        ExprVisitor[PSLExpr[Var]](
-            (  # type: ignore[arg-type]
-                # PSL bindings
-                SuffixImpliesUniv,
-                SuffixImpliesExist,
-                WeakClosure,
-                StrongClosure,
-                # LTL
-                Next,
-                StrongNext,
-                Always,
-                Eventually,
-                Until,
-                WeakUntil,
-                Release,
-                StrongRelease,
-                # SERE
-                Concat,
-                Fusion,
-                Alt,
-                Inter,
-                Repeat,
-                # Boolean
-                Implies,
-                Equiv,
-                Xor,
-                And,
-                Or,
-                Not,
-                Variable[Var],
-                Literal,
+        ExprVisitor(
+            cast(
+                list[type[PSLExpr[Var]]],
+                [
+                    # PSL bindings
+                    SuffixImpliesUniv,
+                    SuffixImpliesExist,
+                    WeakClosure,
+                    StrongClosure,
+                    # LTL
+                    Next,
+                    StrongNext,
+                    Always,
+                    Eventually,
+                    Until,
+                    WeakUntil,
+                    Release,
+                    StrongRelease,
+                    # SERE
+                    Concat,
+                    Fusion,
+                    Alt,
+                    Inter,
+                    Repeat,
+                    # Boolean
+                    Implies,
+                    Equiv,
+                    Xor,
+                    And,
+                    Or,
+                    Not,
+                    Variable[Var],
+                    Literal,
+                ],
             ),
             expr,
         )

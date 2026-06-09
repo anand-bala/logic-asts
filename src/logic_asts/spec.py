@@ -6,9 +6,9 @@ import typing as ty
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Collection, Hashable, Iterator
-from typing import TYPE_CHECKING, Generic, TypeAlias
+from typing import TYPE_CHECKING, Generic, TypeAlias, cast
 
-from typing_extensions import TypeVar, overload
+from typing_extensions import Self, TypeVar, overload
 
 if TYPE_CHECKING:
     from logic_asts.base import Not, Variable
@@ -207,60 +207,55 @@ class Expr(ABC):
             Non-negative integer or float('inf') for unbounded formulas.
         """
 
-    def __invert__(self) -> Expr:
+    def __invert__(self) -> Self:
         r"""Logical negation operator (~).
 
         Returns:
-            A ``Not`` expression wrapping this expression.
+            A ``Not`` expression wrapping this expression, typed as ``Self`` so
+            that operating within a dialect union stays inside that union
+            (``~e`` for ``e: LTLExpr[AP]`` is typed ``LTLExpr[AP]``).
 
         Note:
-            The static return type is ``Expr`` rather than ``Not`` because
-            ``Not.__invert__`` performs double-negation elimination and returns
-            ``self.arg`` (an arbitrary ``Expr``), which would violate LSP if
-            the base were narrowed to ``Not``.  When you know your operand is
-            not a ``Not`` node, ``isinstance``-narrowing or a cast is the
-            correct workaround.
+            The return is ``Self`` via :func:`typing.cast`: every dialect union
+            is closed under negation, so the result is a member of the same
+            union as ``self``. Overrides (``Not`` elimination, ``Literal``
+            folding) keep the ``Self`` return.
         """
         from logic_asts.base import Not
 
-        return Not(self)
+        return cast(Self, Not(self))
 
-    def __and__(self, other: Expr) -> Expr:
+    def __and__(self, other: Expr) -> Self:
         r"""Logical conjunction operator (&).
 
         Returns:
-            An ``And`` expression joining this and other.
+            An ``And`` expression joining this and other, typed as ``Self`` so
+            that ``&`` within a dialect union stays inside that union.
 
         Note:
-            The static return type is ``Expr`` rather than ``And`` because
-            ``Literal.__and__`` may return ``self``, ``Literal(...)``, or
-            ``other`` unchanged (constant-folding), all of which widen the
-            type to ``Expr``.  Calling ``&`` on a concrete non-``Literal``
-            type (e.g. ``And``, ``Or``, ``Variable``) will return ``And``
-            at runtime; use ``And.__and__`` (annotated ``-> And``) or a
-            cast where the narrower type matters.
+            The return is ``Self`` via :func:`typing.cast`: a dialect union is
+            closed under conjunction. ``other`` is accepted as a bare ``Expr``
+            (a covariant child TypeVar cannot be a parameter); pass operands
+            from the same dialect to keep the ``Self`` type honest.
         """
         from logic_asts.base import And
 
-        return And((self, other))
+        return cast(Self, And((self, other)))
 
-    def __or__(self, other: Expr) -> Expr:
+    def __or__(self, other: Expr) -> Self:
         r"""Logical disjunction operator (|).
 
         Returns:
-            An ``Or`` expression joining this and other.
+            An ``Or`` expression joining this and other, typed as ``Self`` so
+            that ``|`` within a dialect union stays inside that union.
 
         Note:
-            The static return type is ``Expr`` rather than ``Or`` because
-            ``Literal.__or__`` may return ``self``, ``Literal(...)``, or
-            ``other`` unchanged (constant-folding).  Calling ``|`` on a
-            concrete non-``Literal`` type will return ``Or`` at runtime;
-            use ``Or.__or__`` (annotated ``-> Or``) or a cast where the
-            narrower type matters.
+            The return is ``Self`` via :func:`typing.cast`: a dialect union is
+            closed under disjunction. See :meth:`__and__` regarding ``other``.
         """
         from logic_asts.base import Or
 
-        return Or((self, other))
+        return cast(Self, Or((self, other)))
 
 
 _T = TypeVar("_T", bound=Expr)

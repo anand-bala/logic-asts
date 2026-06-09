@@ -20,6 +20,7 @@ import pytest
 import logic_asts
 from logic_asts.base import (
     And,
+    BaseExpr,
     Equiv,
     Implies,
     Literal,
@@ -106,8 +107,8 @@ class TestBinaryOperators:
         """Test And creation using & operator."""
         p = Variable("p")
         q = Variable("q")
-        expr1 = And((p, q))
-        expr2 = p & q
+        expr1: BaseExpr[str] = And((p, q))
+        expr2: BaseExpr[str] = p & q
         assert expr1 == expr2
 
     def test_and_flattening(self) -> None:
@@ -135,8 +136,8 @@ class TestBinaryOperators:
         """Test Or creation using | operator."""
         p = Variable("p")
         q = Variable("q")
-        expr1 = Or((p, q))
-        expr2 = p | q
+        expr1: BaseExpr[str] = Or((p, q))
+        expr2: BaseExpr[str] = p | q
         assert expr1 == expr2
 
     def test_or_flattening(self) -> None:
@@ -187,8 +188,8 @@ class TestUnaryOperator:
     def test_not_operator_overload(self) -> None:
         """Test Not creation using ~ operator."""
         p = Variable("p")
-        expr1 = Not(p)
-        expr2 = ~p
+        expr1: BaseExpr[str] = Not(p)
+        expr2: BaseExpr[str] = ~p
         assert expr1 == expr2
 
     def test_double_negation_elimination(self) -> None:
@@ -312,9 +313,9 @@ class TestNNFConversion:
     def test_nnf_double_negation(self) -> None:
         """Test that ~~p = p in NNF."""
         p = Variable("p")
-        expr = Not(Not(p))
+        expr: BaseExpr[str] = Not(Not(p))
         nnf = expr.to_nnf()
-        assert nnf == p  # type: ignore[comparison-overlap]
+        assert nnf == p
 
     def test_nnf_de_morgan_and(self) -> None:
         r"""Test De Morgan's law: ~(p & q) = ~p | ~q."""
@@ -564,8 +565,8 @@ class TestSimpleEvaluation:
     def test_eval_not(self) -> None:
         """Test Not evaluation."""
         p = Variable("p")
-        assert simple_eval(~p, {"p"}) is False  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
-        assert simple_eval(~p, set()) is True  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
+        assert simple_eval(~p, {"p"}) is False
+        assert simple_eval(~p, set()) is True
 
     def test_eval_implies_true(self) -> None:
         """Test Implies evaluation (true implication)."""
