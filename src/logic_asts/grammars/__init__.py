@@ -9,10 +9,11 @@ from pathlib import Path
 from lark import Token, Transformer, v_args
 from lark.visitors import merge_transformers
 
-from logic_asts.base import Equiv, Implies, Literal, Variable, Xor
+from logic_asts.base import BoolExpr, Equiv, Implies, Literal, Variable, Xor
 from logic_asts.ltl import (
     Always,
     Eventually,
+    LTLExpr,
     Next,
     Release,
     StrongNext,
@@ -21,13 +22,7 @@ from logic_asts.ltl import (
     Until,
     WeakUntil,
 )
-from logic_asts.psl import (
-    PSLFormula,
-    StrongClosure,
-    SuffixImpliesExist,
-    SuffixImpliesUniv,
-    WeakClosure,
-)
+from logic_asts.psl import PSLFormula, StrongClosure, SuffixImpliesExist, SuffixImpliesUniv, WeakClosure
 from logic_asts.sere import (
     Alt,
     Complement,
@@ -43,8 +38,8 @@ from logic_asts.sere import (
     SEREExpr,
 )
 from logic_asts.spec import Expr
-from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, WeightInterval
-from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere
+from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, STLGOExpr, WeightInterval
+from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere, STRELExpr
 
 GRAMMARS_DIR = Path(__file__).parent
 
@@ -84,29 +79,29 @@ class MaybeStrongInterval(typing.NamedTuple):
 
 @typing.final
 @v_args(inline=True)
-class BaseTransform(Transformer[Token, Expr]):
-    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+class BaseTransform(Transformer[Token, BoolExpr[str]]):
+    def mul(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return lhs & rhs
 
-    def add(self, lhs: Expr, rhs: Expr) -> Expr:
+    def add(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return lhs | rhs
 
-    def neg(self, arg: Expr) -> Expr:
+    def neg(self, arg: BoolExpr[str]) -> BoolExpr[str]:
         return ~arg
 
-    def xor(self, lhs: Expr, rhs: Expr) -> Expr:
+    def xor(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return Xor(lhs, rhs)
 
-    def equiv(self, lhs: Expr, rhs: Expr) -> Expr:
+    def equiv(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return Equiv(lhs, rhs)
 
-    def implies(self, lhs: Expr, rhs: Expr) -> Expr:
+    def implies(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return Implies(lhs, rhs)
 
-    def var(self, value: Token | str) -> Expr:
+    def var(self, value: Token | str) -> BoolExpr[str]:
         return Variable(str(value))
 
-    def literal(self, value: Token | str) -> Expr:
+    def literal(self, value: Token | str) -> BoolExpr[str]:
         value = str(value)
         match value:
             case "0" | "FALSE":
@@ -130,7 +125,7 @@ class BaseTransform(Transformer[Token, Expr]):
     def FALSE(self, _value: Token | str) -> Literal:  # noqa: N802
         return Literal(False)
 
-    def start(self, expr: Expr) -> Expr:
+    def start(self, expr: BoolExpr[str]) -> BoolExpr[str]:
         return expr
 
     def IDENTIFIER(self, value: Token | str) -> Variable[str]:  # noqa: N802
@@ -139,30 +134,30 @@ class BaseTransform(Transformer[Token, Expr]):
 
 @typing.final
 @v_args(inline=True)
-class LtlTransform(Transformer[Token, Expr]):
-    def start(self, expr: Expr) -> Expr:
+class LtlTransform(Transformer[Token, LTLExpr[str]]):
+    def start(self, expr: LTLExpr[str]) -> LTLExpr[str]:
         return expr
 
-    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+    def mul(self, lhs: LTLExpr[str], rhs: LTLExpr[str]) -> LTLExpr[str]:
         return lhs & rhs
 
-    def until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+    def until(self, lhs: LTLExpr[str], interval: TimeInterval | None, rhs: LTLExpr[str]) -> LTLExpr[str]:
         interval = interval or TimeInterval()
         return Until(lhs, rhs, interval)
 
-    def weak_until(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+    def weak_until(self, lhs: LTLExpr[str], interval: TimeInterval | None, rhs: LTLExpr[str]) -> LTLExpr[str]:
         interval = interval or TimeInterval()
         return WeakUntil(lhs, rhs, interval)
 
-    def release(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+    def release(self, lhs: LTLExpr[str], interval: TimeInterval | None, rhs: LTLExpr[str]) -> LTLExpr[str]:
         interval = interval or TimeInterval()
         return Release(lhs, rhs, interval)
 
-    def strong_release(self, lhs: Expr, interval: TimeInterval | None, rhs: Expr) -> Expr:
+    def strong_release(self, lhs: LTLExpr[str], interval: TimeInterval | None, rhs: LTLExpr[str]) -> LTLExpr[str]:
         interval = interval or TimeInterval()
         return StrongRelease(lhs, rhs, interval)
 
-    def always(self, interval: TimeInterval | MaybeStrongInterval | None, arg: Expr) -> Expr:
+    def always(self, interval: TimeInterval | MaybeStrongInterval | None, arg: LTLExpr[str]) -> LTLExpr[str]:
         # interval can be:
         # - None (no interval)
         # - TimeInterval (regular time interval)
@@ -174,7 +169,7 @@ class LtlTransform(Transformer[Token, Expr]):
             interval = TimeInterval()
         return Always(arg, interval, strong=strong)
 
-    def eventually(self, interval: TimeInterval | MaybeStrongInterval | None, arg: Expr) -> Expr:
+    def eventually(self, interval: TimeInterval | MaybeStrongInterval | None, arg: LTLExpr[str]) -> LTLExpr[str]:
         # interval can be:
         # - None (no interval)
         # - TimeInterval (regular time interval)
@@ -186,7 +181,7 @@ class LtlTransform(Transformer[Token, Expr]):
             interval = TimeInterval()
         return Eventually(arg, interval, strong=strong)
 
-    def next(self, modifier: MaybeStrongStep | None, arg: Expr) -> Expr:
+    def next(self, modifier: MaybeStrongStep | None, arg: LTLExpr[str]) -> LTLExpr[str]:
         if modifier is None:
             # weak_next: X p
             return Next(arg, None)
@@ -228,52 +223,52 @@ class LtlTransform(Transformer[Token, Expr]):
 
 @typing.final
 @v_args(inline=True)
-class SereTransform(Transformer[Token, Expr]):
-    def start(self, expr: Expr) -> Expr:
+class SereTransform(Transformer[Token, SEREExpr[str]]):
+    def start(self, expr: SEREExpr[str]) -> SEREExpr[str]:
         return expr
 
-    def bool_atom(self, expr: Expr) -> Expr:
+    def bool_atom(self, expr: SEREExpr[str]) -> SEREExpr[str]:
         return expr
 
     @v_args(inline=False)
-    def alt(self, args: list[Expr]) -> Expr:
+    def alt(self, args: list[SEREExpr[str]]) -> SEREExpr[str]:
         return Alt(tuple(args))
 
     @v_args(inline=False)
-    def inter(self, args: list[Expr]) -> Expr:
+    def inter(self, args: list[SEREExpr[str]]) -> SEREExpr[str]:
         return Inter(tuple(args))
 
     @v_args(inline=False)
-    def nlm_inter(self, args: list[Expr]) -> Expr:
+    def nlm_inter(self, args: list[SEREExpr[str]]) -> SEREExpr[str]:
         return NLMInter(tuple(args))
 
-    def complement(self, arg: Expr) -> Expr:
+    def complement(self, arg: SEREExpr[str]) -> SEREExpr[str]:
         return Complement(arg)
 
-    def first_match(self, arg: Expr) -> Expr:
+    def first_match(self, arg: SEREExpr[str]) -> SEREExpr[str]:
         return FirstMatch(arg)
 
     @v_args(inline=False)
-    def concat(self, args: list[Expr]) -> Expr:
+    def concat(self, args: list[SEREExpr[str]]) -> SEREExpr[str]:
         return Concat(tuple(args))
 
     @v_args(inline=False)
-    def fusion(self, args: list[Expr]) -> Expr:
+    def fusion(self, args: list[SEREExpr[str]]) -> SEREExpr[str]:
         return Fusion(tuple(args))
 
-    def repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+    def repeat(self, arg: SEREExpr[str], suffix: tuple[int | None, int | None]) -> SEREExpr[str]:
         low, high = suffix
         return Repeat(arg, low, high)
 
-    def fusion_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+    def fusion_repeat(self, arg: SEREExpr[str], suffix: tuple[int | None, int | None]) -> SEREExpr[str]:
         low, high = suffix
         return FusionRepeat(arg, low, high)
 
-    def goto_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+    def goto_repeat(self, arg: SEREExpr[str], suffix: tuple[int | None, int | None]) -> SEREExpr[str]:
         low, high = suffix
         return GotoRepeat(arg, low, high)
 
-    def equal_repeat(self, arg: Expr, suffix: tuple[int | None, int | None]) -> Expr:
+    def equal_repeat(self, arg: SEREExpr[str], suffix: tuple[int | None, int | None]) -> SEREExpr[str]:
         low, high = suffix
         return EqualRepeat(arg, low, high)
 
@@ -324,23 +319,25 @@ class SereTransform(Transformer[Token, Expr]):
 
 @typing.final
 @v_args(inline=True)
-class StrelTransform(Transformer[Token, Expr]):
-    def start(self, expr: Expr) -> Expr:
+class StrelTransform(Transformer[Token, STRELExpr[str]]):
+    def start(self, expr: STRELExpr[str]) -> STRELExpr[str]:
         return expr
 
-    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+    def mul(self, lhs: STRELExpr[str], rhs: STRELExpr[str]) -> STRELExpr[str]:
         return lhs & rhs
 
-    def reach(self, lhs: Expr, dist_fn: str | None, interval: DistanceInterval, rhs: Expr) -> Expr:
+    def reach(
+        self, lhs: STRELExpr[str], dist_fn: str | None, interval: DistanceInterval, rhs: STRELExpr[str]
+    ) -> STRELExpr[str]:
         return Reach(lhs, rhs, interval, dist_fn)
 
-    def escape(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+    def escape(self, dist_fn: str | None, interval: DistanceInterval, arg: STRELExpr[str]) -> STRELExpr[str]:
         return Escape(arg, interval, dist_fn)
 
-    def somewhere(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+    def somewhere(self, dist_fn: str | None, interval: DistanceInterval, arg: STRELExpr[str]) -> STRELExpr[str]:
         return Somewhere(arg, interval, dist_fn)
 
-    def everywhere(self, dist_fn: str | None, interval: DistanceInterval, arg: Expr) -> Expr:
+    def everywhere(self, dist_fn: str | None, interval: DistanceInterval, arg: STRELExpr[str]) -> STRELExpr[str]:
         return Everywhere(arg, interval, dist_fn)
 
     def dist_interval(self, start: float | None, end: float | None) -> DistanceInterval:
@@ -354,15 +351,15 @@ class StrelTransform(Transformer[Token, Expr]):
 
 
 @typing.final
-class StlGoTransform(Transformer[Token, Expr]):
+class StlGoTransform(Transformer[Token, STLGOExpr[str]]):
     """Transformer for STL-GO grammar, extending LTL transformations."""
 
     @v_args(inline=True)
-    def start(self, expr: Expr) -> Expr:
+    def start(self, expr: STLGOExpr[str]) -> STLGOExpr[str]:
         return expr
 
     @v_args(inline=True)
-    def mul(self, lhs: Expr, rhs: Expr) -> Expr:
+    def mul(self, lhs: STLGOExpr[str], rhs: STLGOExpr[str]) -> STLGOExpr[str]:
         return lhs & rhs
 
     @v_args(inline=True)
@@ -372,8 +369,8 @@ class StlGoTransform(Transformer[Token, Expr]):
         quantifier: Quantifier,
         graphs: frozenset[str],
         edge_count: EdgeCountInterval,
-        arg: Expr,
-    ) -> Expr:
+        arg: STLGOExpr[str],
+    ) -> STLGOExpr[str]:
         return GraphIncoming(
             arg=arg,
             graphs=graphs,
@@ -389,8 +386,8 @@ class StlGoTransform(Transformer[Token, Expr]):
         quantifier: Quantifier,
         graphs: frozenset[str],
         edge_count: EdgeCountInterval,
-        arg: Expr,
-    ) -> Expr:
+        arg: STLGOExpr[str],
+    ) -> STLGOExpr[str]:
         return GraphOutgoing(
             arg=arg,
             graphs=graphs,
@@ -466,41 +463,29 @@ class StlGoTransform(Transformer[Token, Expr]):
 
 @typing.final
 @v_args(inline=True)
-class PslTransform(Transformer[Token, Expr]):
-    def start(self, expr: Expr) -> Expr:
+class PslTransform(Transformer[Token, PSLFormula[str]]):
+    def start(self, expr: PSLFormula[str]) -> PSLFormula[str]:
         return expr
 
-    def suffix_implies_univ(self, sere: Expr, formula: Expr) -> Expr:
-        return SuffixImpliesUniv(
-            typing.cast(SEREExpr[str], sere),
-            typing.cast(PSLFormula[str], formula),
-        )
+    def suffix_implies_univ(self, sere: SEREExpr[str], formula: PSLFormula[str]) -> PSLFormula[str]:
+        return SuffixImpliesUniv(sere, formula)
 
-    def suffix_implies_exist(self, sere: Expr, formula: Expr) -> Expr:
-        return SuffixImpliesExist(
-            typing.cast(SEREExpr[str], sere),
-            typing.cast(PSLFormula[str], formula),
-        )
+    def suffix_implies_exist(self, sere: SEREExpr[str], formula: PSLFormula[str]) -> PSLFormula[str]:
+        return SuffixImpliesExist(sere, formula)
 
-    def suffix_implies_univ_then(self, sere: Expr, formula: Expr) -> Expr:
+    def suffix_implies_univ_then(self, sere: SEREExpr[str], formula: PSLFormula[str]) -> PSLFormula[str]:
         # {r}[]=> f  ==  {r ; 1}[]-> f
-        return SuffixImpliesUniv(
-            Concat((typing.cast(SEREExpr[str], sere), Literal(True))),
-            typing.cast(PSLFormula[str], formula),
-        )
+        return SuffixImpliesUniv(Concat[SEREExpr[str]]((sere, Literal(True))), formula)
 
-    def suffix_implies_exist_then(self, sere: Expr, formula: Expr) -> Expr:
+    def suffix_implies_exist_then(self, sere: SEREExpr[str], formula: PSLFormula[str]) -> PSLFormula[str]:
         # {r}<>=> f  ==  {r ; 1}<>-> f
-        return SuffixImpliesExist(
-            Concat((typing.cast(SEREExpr[str], sere), Literal(True))),
-            typing.cast(PSLFormula[str], formula),
-        )
+        return SuffixImpliesExist(Concat[SEREExpr[str]]((sere, Literal(True))), formula)
 
-    def weak_closure(self, sere: Expr) -> Expr:
-        return WeakClosure(typing.cast(SEREExpr[str], sere))
+    def weak_closure(self, sere: SEREExpr[str]) -> PSLFormula[str]:
+        return WeakClosure(sere)
 
-    def strong_closure(self, sere: Expr) -> Expr:
-        return StrongClosure(typing.cast(SEREExpr[str], sere))
+    def strong_closure(self, sere: SEREExpr[str]) -> PSLFormula[str]:
+        return StrongClosure(sere)
 
 
 @enum.unique
@@ -545,17 +530,16 @@ class SupportedGrammars(enum.Enum):
         """Return the Lark transformer for this grammar."""
         syntax = str(self.value)
 
-        transformer: Transformer[Token, Expr]
         match syntax:
             case "base":
-                transformer = BaseTransform()
+                return typing.cast(Transformer[Token, Expr], BaseTransform())
             case "ltl":
-                transformer = merge_transformers(
+                return merge_transformers(
                     LtlTransform(),
                     base=BaseTransform(),
                 )
             case "strel":
-                transformer = merge_transformers(
+                return merge_transformers(
                     StrelTransform(),
                     ltl=merge_transformers(
                         LtlTransform(),
@@ -563,7 +547,7 @@ class SupportedGrammars(enum.Enum):
                     ),
                 )
             case "stl_go":
-                transformer = merge_transformers(
+                return merge_transformers(
                     StlGoTransform(),
                     ltl=merge_transformers(
                         LtlTransform(),
@@ -571,12 +555,12 @@ class SupportedGrammars(enum.Enum):
                     ),
                 )
             case "sere":
-                transformer = merge_transformers(
+                return merge_transformers(
                     SereTransform(),
                     base=BaseTransform(),
                 )
             case "psl":
-                transformer = merge_transformers(
+                return merge_transformers(
                     PslTransform(),
                     ltl=merge_transformers(
                         LtlTransform(),
@@ -589,4 +573,3 @@ class SupportedGrammars(enum.Enum):
                 )
             case _:
                 raise ValueError(f"Unsupported grammar reference: {syntax}")
-        return transformer
