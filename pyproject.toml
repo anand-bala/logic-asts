@@ -40,6 +40,13 @@ exclude-newer = "30 days"
 addopts = ["--import-mode=importlib", "--doctest-modules", "--mypy"]
 testpaths = ["tests", "src"]
 
+[tool.zuban]
+mode = "default"
+# Recommended (and the default) for untyped code
+untyped_strict_optional = true
+# Mypy's default is "any", Zuban's "inferred"
+untyped_function_return_mode = "inferred"
+
 [tool.mypy]
 strict = true
 files = ["src/", "tests/"]
@@ -75,3 +82,5 @@ reportUnreachable = false
 reportUnnecessaryComparison = false
 reportImportCycles = false
 reportUnknownLambdaType = false
+enableTypeIgnoreComments = true
+reportUnnecessaryTypeIgnoreComment = false
