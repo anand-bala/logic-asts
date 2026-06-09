@@ -485,14 +485,14 @@ class PslTransform(Transformer[Token, Expr]):
     def suffix_implies_univ_then(self, sere: Expr, formula: Expr) -> Expr:
         # {r}[]=> f  ==  {r ; 1}[]-> f
         return SuffixImpliesUniv(
-            Concat((sere, Literal(True))),
+            Concat((typing.cast(SEREExpr[str], sere), Literal(True))),
             typing.cast(PSLFormula[str], formula),
         )
 
     def suffix_implies_exist_then(self, sere: Expr, formula: Expr) -> Expr:
         # {r}<>=> f  ==  {r ; 1}<>-> f
         return SuffixImpliesExist(
-            Concat((sere, Literal(True))),
+            Concat((typing.cast(SEREExpr[str], sere), Literal(True))),
             typing.cast(PSLFormula[str], formula),
         )
 

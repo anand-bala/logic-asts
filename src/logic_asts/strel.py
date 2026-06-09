@@ -35,8 +35,8 @@ Examples:
 from __future__ import annotations
 
 import shlex
-from collections.abc import Iterator
-from typing import TypeAlias, TypeVar, final
+from collections.abc import Hashable, Iterator
+from typing import Generic, TypeVar, final
 
 import attrs
 from attrs import frozen
@@ -52,12 +52,14 @@ from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.ltl import Always as Always
 from logic_asts.ltl import Eventually as Eventually
-from logic_asts.ltl import LTLExpr
 from logic_asts.ltl import Next as Next
 from logic_asts.ltl import Release as Release
+from logic_asts.ltl import StrongNext as StrongNext
+from logic_asts.ltl import StrongRelease as StrongRelease
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
-from logic_asts.spec import Expr, ExprVisitor
+from logic_asts.ltl import WeakUntil as WeakUntil
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start
 
 
@@ -103,7 +105,7 @@ class DistanceInterval:
 
 @final
 @frozen
-class Everywhere(Expr):
+class Everywhere(Expr, Generic[ChildExpr]):
     r"""Universal spatial operator: :math:`\square^d \phi`.
 
     Asserts that the formula holds everywhere within the distance interval.
@@ -122,7 +124,7 @@ class Everywhere(Expr):
         - Nested: G everywhere[0,10] property
     """
 
-    arg: Expr
+    arg: ChildExpr
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -140,7 +142,7 @@ class Everywhere(Expr):
         return Everywhere(self.arg.to_nnf(), self.interval, self.dist_fn)
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -150,7 +152,7 @@ class Everywhere(Expr):
 
 @final
 @frozen
-class Somewhere(Expr):
+class Somewhere(Expr, Generic[ChildExpr]):
     r"""Existential spatial operator: :math:`\diamond^d \phi`.
 
     Asserts that the formula holds somewhere within the distance interval.
@@ -169,7 +171,7 @@ class Somewhere(Expr):
         - Temporal-spatial: F somewhere[0,10] ally
     """
 
-    arg: Expr
+    arg: ChildExpr
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -187,7 +189,7 @@ class Somewhere(Expr):
         return Somewhere(self.arg.to_nnf(), self.interval, self.dist_fn)
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -197,7 +199,7 @@ class Somewhere(Expr):
 
 @final
 @frozen
-class Escape(Expr):
+class Escape(Expr, Generic[ChildExpr]):
     r"""Escape operator: escape from a region.
 
     Asserts that the system can escape from the region where the formula holds,
@@ -214,7 +216,7 @@ class Escape(Expr):
         - With metric: escape^hops[0,5] blocked_region
     """
 
-    arg: Expr
+    arg: ChildExpr
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -232,7 +234,7 @@ class Escape(Expr):
         return Escape(self.arg.to_nnf(), self.interval, self.dist_fn)
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -242,7 +244,7 @@ class Escape(Expr):
 
 @final
 @frozen
-class Reach(Expr):
+class Reach(Expr, Generic[ChildExpr]):
     r"""Reachability operator: :math:`\phi \leadsto^d \psi`.
 
     Binary spatial operator asserting reachability. The formula :math:`\phi \leadsto^d \psi`
@@ -261,8 +263,8 @@ class Reach(Expr):
         - Spatio-temporal: (F location1) reach[0,30] (F location2)
     """
 
-    lhs: Expr
-    rhs: Expr
+    lhs: ChildExpr
+    rhs: ChildExpr
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -290,7 +292,7 @@ class Reach(Expr):
         )
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.lhs
         yield self.rhs
 
@@ -300,7 +302,28 @@ class Reach(Expr):
 
 
 Var = TypeVar("Var")
-STRELExpr: TypeAlias = LTLExpr[Var] | Everywhere | Somewhere | Reach | Escape
+type STRELExpr[Var: Hashable] = (
+    Variable[Var]
+    | Literal
+    | And[STRELExpr[Var]]
+    | Or[STRELExpr[Var]]
+    | Not[STRELExpr[Var]]
+    | Implies[STRELExpr[Var]]
+    | Equiv[STRELExpr[Var]]
+    | Xor[STRELExpr[Var]]
+    | Next[STRELExpr[Var]]
+    | StrongNext[STRELExpr[Var]]
+    | Always[STRELExpr[Var]]
+    | Eventually[STRELExpr[Var]]
+    | Until[STRELExpr[Var]]
+    | WeakUntil[STRELExpr[Var]]
+    | Release[STRELExpr[Var]]
+    | StrongRelease[STRELExpr[Var]]
+    | Everywhere[STRELExpr[Var]]
+    | Somewhere[STRELExpr[Var]]
+    | Reach[STRELExpr[Var]]
+    | Escape[STRELExpr[Var]]
+)
 """STREL expression types.
 
 Use :func:`logic_asts.strel_expr_iter` to iterate over the subtree of a
@@ -327,7 +350,7 @@ def strel_expr_iter(expr: STRELExpr[Var]) -> Iterator[STRELExpr[Var]]:
     """
     return iter(
         ExprVisitor[STRELExpr[Var]](
-            (
+            (  # type: ignore[arg-type]
                 Everywhere,
                 Somewhere,
                 Reach,

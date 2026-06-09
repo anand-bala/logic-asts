@@ -24,13 +24,13 @@ import re
 import typing
 from collections.abc import Hashable, Iterator
 from collections.abc import Set as AbstractSet
-from typing import Generic, TypeAlias, TypeVar, final
+from typing import Generic, TypeVar, final
 
 import attrs
 from attrs import field, frozen
 from typing_extensions import Self, override
 
-from logic_asts.spec import Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 
 Var = TypeVar("Var", bound=Hashable)
 
@@ -56,7 +56,7 @@ def _format_variable_name(name: object) -> str:
 
 @final
 @frozen
-class Implies(Expr):
+class Implies(Expr, Generic[ChildExpr]):
     r"""Logical implication operator: :math:`\phi \to \psi`.
 
     Represents "if phi then psi" or equivalently "not phi or psi".
@@ -67,8 +67,8 @@ class Implies(Expr):
         rhs: Right-hand side formula (:math:`\psi`, the consequent).
     """
 
-    lhs: Expr
-    rhs: Expr
+    lhs: ChildExpr
+    rhs: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -79,7 +79,7 @@ class Implies(Expr):
         return ~self.lhs | self.rhs
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.lhs
         yield self.rhs
 
@@ -90,7 +90,7 @@ class Implies(Expr):
 
 @final
 @frozen
-class Equiv(Expr):
+class Equiv(Expr, Generic[ChildExpr]):
     r"""Logical equivalence operator: :math:`\phi \equiv \psi`.
 
     Represents "phi if and only if psi" or equivalently
@@ -102,8 +102,8 @@ class Equiv(Expr):
         rhs: Right-hand side formula
     """
 
-    lhs: Expr
-    rhs: Expr
+    lhs: ChildExpr
+    rhs: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -116,7 +116,7 @@ class Equiv(Expr):
         return (x | ~y) & (~x | y)
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.lhs
         yield self.rhs
 
@@ -127,7 +127,7 @@ class Equiv(Expr):
 
 @final
 @frozen
-class Xor(Expr):
+class Xor(Expr, Generic[ChildExpr]):
     r"""Exclusive or operator: :math:`\phi \oplus \psi`.
 
     Represents "phi or psi but not both" or equivalently
@@ -139,8 +139,8 @@ class Xor(Expr):
         rhs: Right-hand side formula (:math:`\psi`).
     """
 
-    lhs: Expr
-    rhs: Expr
+    lhs: ChildExpr
+    rhs: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -153,7 +153,7 @@ class Xor(Expr):
         return (x & ~y) | (~x & y)
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.lhs
         yield self.rhs
 
@@ -164,7 +164,7 @@ class Xor(Expr):
 
 @final
 @frozen
-class And(Expr):
+class And(Expr, Generic[ChildExpr]):
     r"""Conjunction operator: :math:`\phi_1 \wedge \phi_2 \wedge \cdots \wedge \phi_n`.
 
     Represents the logical conjunction of multiple formulas. Requires at least
@@ -178,7 +178,7 @@ class And(Expr):
         - Using constructor: ``And((p, q, r))``
     """
 
-    args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
@@ -192,7 +192,7 @@ class And(Expr):
         return acc
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -208,7 +208,7 @@ class And(Expr):
 
 @final
 @frozen
-class Or(Expr):
+class Or(Expr, Generic[ChildExpr]):
     r"""Disjunction operator: :math:`\phi_1 \vee \phi_2 \vee \cdots \vee \phi_n`.
 
     Represents the logical disjunction of multiple formulas. Requires at least
@@ -222,7 +222,7 @@ class Or(Expr):
         - Using constructor: ``Or((p, q, r))``
     """
 
-    args: tuple[Expr, ...] = field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
@@ -236,7 +236,7 @@ class Or(Expr):
         return acc
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -252,7 +252,7 @@ class Or(Expr):
 
 @final
 @frozen
-class Not(Expr):
+class Not(Expr, Generic[ChildExpr]):
     r"""Negation operator: :math:`\neg\phi`.
 
     Represents the logical negation of a formula. Can be created using the ``~`` operator.
@@ -266,7 +266,7 @@ class Not(Expr):
         - Using constructor: ``Not(Variable("p"))``
     """
 
-    arg: Expr
+    arg: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -282,7 +282,7 @@ class Not(Expr):
         return ~(self.arg.expand())
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -390,7 +390,16 @@ class Literal(Expr):
         return 0
 
 
-BaseExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
+type BaseExpr[Var: Hashable] = (
+    Variable[Var]
+    | Literal
+    | And[BaseExpr[Var]]
+    | Or[BaseExpr[Var]]
+    | Not[BaseExpr[Var]]
+    | Implies[BaseExpr[Var]]
+    | Equiv[BaseExpr[Var]]
+    | Xor[BaseExpr[Var]]
+)
 """Propositional logic expression types.
 
 Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
@@ -398,7 +407,7 @@ Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
 ``Iterator[BaseExpr[AP]]``).
 """
 
-BoolExpr: TypeAlias = Implies | Equiv | Xor | And | Or | Not | Variable[Var] | Literal
+type BoolExpr[Var: Hashable] = BaseExpr[Var]
 """Propositional logic expression types (alias for :data:`BaseExpr`).
 
 Use :func:`logic_asts.bool_expr_iter` to iterate over the subtree of a
@@ -443,7 +452,7 @@ def bool_expr_iter(expr: BoolExpr[Var]) -> Iterator[BoolExpr[Var]]:
     """
     return iter(
         ExprVisitor[BoolExpr[Var]](
-            (
+            (  # type: ignore[arg-type]
                 Implies,
                 Equiv,
                 Xor,
@@ -497,23 +506,16 @@ def simple_eval(expr: BaseExpr[Var], input: AbstractSet[Var]) -> bool:
             case Variable(name):
                 cache[subexpr] = name in input
             case Not(arg):
-                assert is_bool_expr(arg)
                 cache[subexpr] = not cache[arg]
             case Or(args):
-                cache[subexpr] = any(cache[typing.cast(BoolExpr[Var], arg)] for arg in args)
+                cache[subexpr] = any(cache[arg] for arg in args)
             case And(args):
-                cache[subexpr] = all(cache[typing.cast(BoolExpr[Var], arg)] for arg in args)
+                cache[subexpr] = all(cache[arg] for arg in args)
             case Xor(lhs, rhs):
-                assert is_bool_expr(lhs)
-                assert is_bool_expr(rhs)
                 cache[subexpr] = cache[lhs] != cache[rhs]
             case Equiv(lhs, rhs):
-                assert is_bool_expr(lhs)
-                assert is_bool_expr(rhs)
                 cache[subexpr] = cache[lhs] == cache[rhs]
             case Implies(p, q):
-                assert is_bool_expr(p)
-                assert is_bool_expr(q)
                 cache[subexpr] = (not cache[p]) or cache[q]
             case _:
                 raise TypeError(f"simple evaluation only possible for propositional logic expressions, got {type(subexpr)}")

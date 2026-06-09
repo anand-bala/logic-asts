@@ -14,8 +14,8 @@ are out of scope for this module.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Generic, TypeAlias, TypeVar, cast, final
+from collections.abc import Hashable, Iterator
+from typing import Generic, TypeVar, cast, final
 
 from attrs import field, frozen
 from typing_extensions import override
@@ -33,7 +33,6 @@ from logic_asts.base import (
 from logic_asts.ltl import (
     Always,
     Eventually,
-    LTLExpr,
     Next,
     Release,
     StrongNext,
@@ -203,10 +202,31 @@ class StrongClosure(Expr, Generic[Var]):
         return self.sere.horizon()
 
 
-PSLFormula: TypeAlias = LTLExpr[Var] | SuffixImpliesUniv[Var] | SuffixImpliesExist[Var] | WeakClosure[Var] | StrongClosure[Var]
+type PSLFormula[Var: Hashable] = (
+    Variable[Var]
+    | Literal
+    | And[PSLFormula[Var]]
+    | Or[PSLFormula[Var]]
+    | Not[PSLFormula[Var]]
+    | Implies[PSLFormula[Var]]
+    | Equiv[PSLFormula[Var]]
+    | Xor[PSLFormula[Var]]
+    | Next[PSLFormula[Var]]
+    | StrongNext[PSLFormula[Var]]
+    | Always[PSLFormula[Var]]
+    | Eventually[PSLFormula[Var]]
+    | Until[PSLFormula[Var]]
+    | WeakUntil[PSLFormula[Var]]
+    | Release[PSLFormula[Var]]
+    | StrongRelease[PSLFormula[Var]]
+    | SuffixImpliesUniv[Var]
+    | SuffixImpliesExist[Var]
+    | WeakClosure[Var]
+    | StrongClosure[Var]
+)
 """Type of a PSL formula (no bare SEREs)."""
 
-PSLExpr: TypeAlias = PSLFormula[Var] | SEREExpr[Var]
+type PSLExpr[Var: Hashable] = PSLFormula[Var] | SEREExpr[Var]
 """Permissive umbrella: any node the PSL parser can produce."""
 
 

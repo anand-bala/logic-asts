@@ -17,9 +17,9 @@ import logic_asts
 HAS_SPOT: typing.Literal["lib", "cli"]
 
 if importlib.util.find_spec("spot") is not None:
-    HAS_SPOT = "lib"
+    HAS_SPOT = "lib"  # pyright: ignore[reportConstantRedefinition]
 elif all(shutil.which(tool) is not None for tool in ("ltlfilt",)):
-    HAS_SPOT = "cli"
+    HAS_SPOT = "cli"  # pyright: ignore[reportConstantRedefinition]
 else:
     pytest.skip("Spot library nor CLI is available", allow_module_level=True)
 
@@ -85,7 +85,7 @@ def assert_spot_accepts(*formulas: str) -> None:
     formulas reported by ``ltlfilt --count`` must equal ``len(formulas)``.
     """
     if HAS_SPOT == "lib":
-        import spot
+        import spot  # pyright: ignore[reportMissingImports]
 
         for formula in formulas:
             try:
@@ -132,7 +132,7 @@ def assert_spot_accepts_psl(*formulas: str) -> None:
     are wrapped in ``{...}!`` for the Spot check.
     """
     if HAS_SPOT == "lib":
-        import spot
+        import spot  # pyright: ignore[reportMissingImports]
 
         for formula in formulas:
             try:

@@ -169,7 +169,7 @@ def test_sere_expr_iter_yields_postorder() -> None:
     from logic_asts.sere import SEREExpr, sere_expr_iter
 
     a, b = Variable("a"), Variable("b")
-    expr = Concat((Repeat(a, 0, None), b))
+    expr: SEREExpr[str] = Concat((Repeat(a, 0, None), b))
     nodes: list[SEREExpr[str]] = list(sere_expr_iter(expr))
     # Leaves come before parents in post-order.
     assert nodes[-1] == expr
@@ -177,10 +177,12 @@ def test_sere_expr_iter_yields_postorder() -> None:
 
 
 def test_sere_expr_iter_rejects_non_sere_node() -> None:
-    from logic_asts.ltl import Eventually
-    from logic_asts.sere import sere_expr_iter
+    from typing import cast
 
-    bad = Concat((Variable("a"), Eventually(Variable("b"))))
+    from logic_asts.ltl import Eventually
+    from logic_asts.sere import SEREExpr, sere_expr_iter
+
+    bad: SEREExpr[str] = cast("SEREExpr[str]", Concat((Variable("a"), Eventually(Variable("b")))))
     with pytest.raises(TypeError):
         list(sere_expr_iter(bad))
 

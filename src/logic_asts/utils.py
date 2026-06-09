@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Hashable
 from numbers import Real
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import attrs
 from typing_extensions import overload
@@ -38,7 +38,7 @@ def check_weight_start(instance: Any, attribute: attrs.Attribute[None], value: f
         raise ValueError(f"{attribute.name} [a,b] cannot have a > b")
 
 
-def _convert_next_step(value: int | None) -> int | None:
+def convert_next_step(value: int | None) -> int | None:
     """Convert the `steps` parameter for Next and StrongNext into `None` if equal to `1`."""
     if value is None or value == 1:
         return None
@@ -100,23 +100,25 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
         case logic.Not(arg):
             return to_nnf(arg, negate=not negate, _expanded=_expanded)
         case logic.And(args):
-            args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
+            nnf_args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
             if negate:
-                return logic.Or(args)
+                return logic.Or(nnf_args)
             else:
-                return logic.And(args)
+                return logic.And(nnf_args)
         case logic.Or(args):
-            args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
+            nnf_args = tuple(to_nnf(arg, negate=negate, _expanded=_expanded) for arg in args)
             if negate:
-                return logic.And(args)
+                return logic.And(nnf_args)
             else:
-                return logic.Or(args)
+                return logic.Or(nnf_args)
         case logic.Implies(lhs, rhs):
-            return to_nnf(~lhs | rhs, negate=negate, _expanded=_expanded)
+            return to_nnf(~cast(logic.Expr, lhs) | cast(logic.Expr, rhs), negate=negate, _expanded=_expanded)
         case logic.Equiv(x, y):
-            return to_nnf((x | ~y) & (~x | y), negate=negate, _expanded=_expanded)
+            xe, ye = cast(logic.Expr, x), cast(logic.Expr, y)
+            return to_nnf((xe | ~ye) & (~xe | ye), negate=negate, _expanded=_expanded)
         case logic.Xor(x, y):
-            return to_nnf((x & ~y) | (~x & y), negate=negate, _expanded=_expanded)
+            xe, ye = cast(logic.Expr, x), cast(logic.Expr, y)
+            return to_nnf((xe & ~ye) | (~xe & ye), negate=negate, _expanded=_expanded)
         case logic.ltl.Next(arg):
             if negate:
                 # !X f = X[!] !f (strong-X dual of weak-X)
@@ -246,7 +248,7 @@ def to_nnf(expr: logic.Expr, *, negate: bool = False, _expanded: bool = False) -
             return expr
         case logic.sere.Complement(inner):
             if negate:
-                return inner
+                return cast(logic.Expr, inner)
             return expr
         case (
             logic.sere.Concat()

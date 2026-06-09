@@ -37,8 +37,8 @@ from __future__ import annotations
 
 import enum
 import math
-from collections.abc import Iterator
-from typing import TypeAlias, TypeVar, final
+from collections.abc import Hashable, Iterator
+from typing import Generic, TypeVar, final
 
 import attrs
 from attrs import frozen
@@ -54,12 +54,14 @@ from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.ltl import Always as Always
 from logic_asts.ltl import Eventually as Eventually
-from logic_asts.ltl import LTLExpr
 from logic_asts.ltl import Next as Next
 from logic_asts.ltl import Release as Release
+from logic_asts.ltl import StrongNext as StrongNext
+from logic_asts.ltl import StrongRelease as StrongRelease
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
-from logic_asts.spec import Expr, ExprVisitor
+from logic_asts.ltl import WeakUntil as WeakUntil
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, check_weight_start
 
 
@@ -244,7 +246,7 @@ class Quantifier(enum.Enum):
 
 @final
 @frozen
-class GraphIncoming(Expr):
+class GraphIncoming(Expr, Generic[ChildExpr]):
     r"""Incoming graph operator: :math:`\text{In}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over incoming edges to an agent. Asserts that there exist
@@ -271,7 +273,7 @@ class GraphIncoming(Expr):
         - Always receive from all: G in^[-inf,inf]{A}_{s}[1,n] message
     """
 
-    arg: Expr
+    arg: ChildExpr
     graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
@@ -294,7 +296,7 @@ class GraphIncoming(Expr):
         )
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -305,7 +307,7 @@ class GraphIncoming(Expr):
 
 @final
 @frozen
-class GraphOutgoing(Expr):
+class GraphOutgoing(Expr, Generic[ChildExpr]):
     r"""Outgoing graph operator: :math:`\text{Out}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over outgoing edges from an agent. Asserts that there exist
@@ -332,7 +334,7 @@ class GraphOutgoing(Expr):
         - Broadcast message: G out^[-inf,inf]{A}_{s}[1,n] received
     """
 
-    arg: Expr
+    arg: ChildExpr
     graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
@@ -355,7 +357,7 @@ class GraphOutgoing(Expr):
         )
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -365,7 +367,26 @@ class GraphOutgoing(Expr):
 
 
 Var = TypeVar("Var")
-STLGOExpr: TypeAlias = LTLExpr[Var] | GraphIncoming | GraphOutgoing
+type STLGOExpr[Var: Hashable] = (
+    Variable[Var]
+    | Literal
+    | And[STLGOExpr[Var]]
+    | Or[STLGOExpr[Var]]
+    | Not[STLGOExpr[Var]]
+    | Implies[STLGOExpr[Var]]
+    | Equiv[STLGOExpr[Var]]
+    | Xor[STLGOExpr[Var]]
+    | Next[STLGOExpr[Var]]
+    | StrongNext[STLGOExpr[Var]]
+    | Always[STLGOExpr[Var]]
+    | Eventually[STLGOExpr[Var]]
+    | Until[STLGOExpr[Var]]
+    | WeakUntil[STLGOExpr[Var]]
+    | Release[STLGOExpr[Var]]
+    | StrongRelease[STLGOExpr[Var]]
+    | GraphIncoming[STLGOExpr[Var]]
+    | GraphOutgoing[STLGOExpr[Var]]
+)
 """STL-GO expression types.
 
 Use :func:`logic_asts.stlgo_expr_iter` to iterate over the subtree of a
@@ -392,7 +413,7 @@ def stlgo_expr_iter(expr: STLGOExpr[Var]) -> Iterator[STLGOExpr[Var]]:
     """
     return iter(
         ExprVisitor[STLGOExpr[Var]](
-            (
+            (  # type: ignore[arg-type]
                 GraphIncoming,
                 GraphOutgoing,
                 Next,

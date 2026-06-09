@@ -34,15 +34,14 @@ arbitrary SERE operands here, not just Boolean formulas as in Spot.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator
-from typing import TypeAlias, TypeVar, final
+from collections.abc import Hashable, Iterator
+from typing import Generic, TypeVar, final
 
 import attrs
 from attrs import frozen
 from typing_extensions import override
 
 from logic_asts.base import And as And
-from logic_asts.base import BoolExpr as BoolExpr
 from logic_asts.base import Equiv as Equiv
 from logic_asts.base import Implies as Implies
 from logic_asts.base import Literal as Literal
@@ -50,7 +49,7 @@ from logic_asts.base import Not as Not
 from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
-from logic_asts.spec import Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 
 
 def _normalize_low(value: int | None) -> int:
@@ -59,13 +58,13 @@ def _normalize_low(value: int | None) -> int:
 
 @final
 @frozen
-class Repeat(Expr):
+class Repeat(Expr, Generic[ChildExpr]):
     r"""Repetition: ``r[*low..high]``.
 
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: Expr
+    arg: ChildExpr
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -94,7 +93,7 @@ class Repeat(Expr):
         return f"{arg_str}{suffix}"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -124,17 +123,17 @@ def _flatten_same_kind(cls: type[Expr], args: tuple[Expr, ...]) -> tuple[Expr, .
 
 @final
 @frozen
-class Concat(Expr):
+class Concat(Expr, Generic[ChildExpr]):
     r"""SERE concatenation: ``r1 ; r2 ; ... ; rn``."""
 
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
         return "(" + " ; ".join(str(a) for a in self.args) + ")"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -149,17 +148,17 @@ class Concat(Expr):
 
 @final
 @frozen
-class Fusion(Expr):
+class Fusion(Expr, Generic[ChildExpr]):
     r"""SERE fusion: ``r1 : r2 : ... : rn``."""
 
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
         return "(" + " : ".join(str(a) for a in self.args) + ")"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -174,17 +173,17 @@ class Fusion(Expr):
 
 @final
 @frozen
-class Alt(Expr):
+class Alt(Expr, Generic[ChildExpr]):
     r"""SERE alternation: ``r1 | r2 | ... | rn``."""
 
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
         return "(" + " | ".join(str(a) for a in self.args) + ")"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -199,17 +198,17 @@ class Alt(Expr):
 
 @final
 @frozen
-class Inter(Expr):
+class Inter(Expr, Generic[ChildExpr]):
     r"""SERE length-matching intersection: ``r1 && r2 && ... && rn``."""
 
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
         return "(" + " && ".join(str(a) for a in self.args) + ")"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -224,7 +223,7 @@ class Inter(Expr):
 
 @final
 @frozen
-class NLMInter(Expr):
+class NLMInter(Expr, Generic[ChildExpr]):
     r"""SERE non-length-matching intersection: ``r1 & r2 & ... & rn``.
 
     A word ``w`` matches iff one operand matches ``w`` exactly and every
@@ -236,14 +235,14 @@ class NLMInter(Expr):
     to match the same word of the same length.
     """
 
-    args: tuple[Expr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
 
     @override
     def __str__(self) -> str:
         return "(" + " & ".join(str(a) for a in self.args) + ")"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield from self.args
 
     @override
@@ -258,7 +257,7 @@ class NLMInter(Expr):
 
 @final
 @frozen
-class Complement(Expr):
+class Complement(Expr, Generic[ChildExpr]):
     r"""SERE complement: ``~r``.
 
     Language: ``Sigma* \ L(r)``. Distinct from Boolean negation on a
@@ -270,7 +269,7 @@ class Complement(Expr):
     complement operator. See the module docstring.
     """
 
-    arg: Expr
+    arg: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -288,7 +287,7 @@ class Complement(Expr):
         return f"~{inner}"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -302,14 +301,14 @@ class Complement(Expr):
 
 @final
 @frozen
-class FirstMatch(Expr):
+class FirstMatch(Expr, Generic[ChildExpr]):
     r"""SERE first-match restriction: ``first_match(r)``.
 
     Language: words ``w`` in ``L(r)`` whose strictly shorter prefixes
     are all outside ``L(r)``. Matches Spot's ``first_match`` operator.
     """
 
-    arg: Expr
+    arg: ChildExpr
 
     @override
     def __str__(self) -> str:
@@ -319,7 +318,7 @@ class FirstMatch(Expr):
         return f"first_match({body})"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -333,7 +332,7 @@ class FirstMatch(Expr):
 
 @final
 @frozen
-class FusionRepeat(Expr):
+class FusionRepeat(Expr, Generic[ChildExpr]):
     r"""Fusion-iteration: ``r[:*low..high]``.
 
     Like ``Repeat`` (`[*]`) but the separator is fusion (`:`) instead of
@@ -344,7 +343,7 @@ class FusionRepeat(Expr):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: Expr
+    arg: ChildExpr
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -373,7 +372,7 @@ class FusionRepeat(Expr):
         return f"{arg_str}{suffix}"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -408,7 +407,7 @@ class FusionRepeat(Expr):
 
 @final
 @frozen
-class GotoRepeat(Expr):
+class GotoRepeat(Expr, Generic[ChildExpr]):
     r"""Goto-repetition: ``r[->low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE
@@ -421,7 +420,7 @@ class GotoRepeat(Expr):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: Expr
+    arg: ChildExpr
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -448,7 +447,7 @@ class GotoRepeat(Expr):
         return f"{arg_str}{suffix}"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -472,7 +471,7 @@ class GotoRepeat(Expr):
 
 @final
 @frozen
-class EqualRepeat(Expr):
+class EqualRepeat(Expr, Generic[ChildExpr]):
     r"""Equal-count repetition: ``r[=low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE
@@ -485,7 +484,7 @@ class EqualRepeat(Expr):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: Expr
+    arg: ChildExpr
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -512,7 +511,7 @@ class EqualRepeat(Expr):
         return f"{arg_str}{suffix}"
 
     @override
-    def children(self) -> Iterator[Expr]:
+    def children(self) -> Iterator[ChildExpr]:
         yield self.arg
 
     @override
@@ -531,19 +530,26 @@ class EqualRepeat(Expr):
 
 
 Var = TypeVar("Var")
-SEREExpr: TypeAlias = (
-    BoolExpr[Var]
-    | Concat
-    | Fusion
-    | Alt
-    | Inter
-    | NLMInter
-    | Complement
-    | FirstMatch
-    | FusionRepeat
-    | GotoRepeat
-    | EqualRepeat
-    | Repeat
+type SEREExpr[Var: Hashable] = (
+    Variable[Var]
+    | Literal
+    | And[SEREExpr[Var]]
+    | Or[SEREExpr[Var]]
+    | Not[SEREExpr[Var]]
+    | Implies[SEREExpr[Var]]
+    | Equiv[SEREExpr[Var]]
+    | Xor[SEREExpr[Var]]
+    | Concat[SEREExpr[Var]]
+    | Fusion[SEREExpr[Var]]
+    | Alt[SEREExpr[Var]]
+    | Inter[SEREExpr[Var]]
+    | NLMInter[SEREExpr[Var]]
+    | Complement[SEREExpr[Var]]
+    | FirstMatch[SEREExpr[Var]]
+    | FusionRepeat[SEREExpr[Var]]
+    | GotoRepeat[SEREExpr[Var]]
+    | EqualRepeat[SEREExpr[Var]]
+    | Repeat[SEREExpr[Var]]
 )
 """Union of all SERE expression node types."""
 
@@ -552,7 +558,7 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
     """Post-order iterator over a SERE expression, validating dialect membership."""
     return iter(
         ExprVisitor[SEREExpr[Var]](
-            (
+            (  # type: ignore[arg-type]
                 Concat,
                 Fusion,
                 Alt,

@@ -223,7 +223,7 @@ def parse_expr(
 
 
 @overload
-def parse_expr(
+def parse_expr(  # pyright: ignore[reportOverlappingOverload]
     expr: str,
     *,
     syntax: typing.Literal["ltl", SupportedGrammars.LTL] = ...,

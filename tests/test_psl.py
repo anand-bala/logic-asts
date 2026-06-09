@@ -5,6 +5,7 @@ import pytest
 from logic_asts.base import Literal, Not, Variable
 from logic_asts.ltl import Always, Eventually, Release, Until
 from logic_asts.psl import (
+    PSLFormula,
     StrongClosure,
     SuffixImpliesExist,
     SuffixImpliesUniv,
@@ -114,13 +115,14 @@ class TestPslParser:
 
 
 def test_psl_expr_iter_walks_mixed_tree() -> None:
-    from logic_asts.psl import PSLExpr, psl_expr_iter
+    from logic_asts.psl import psl_expr_iter
+    from logic_asts.sere import SEREExpr
 
     a, b, c = Variable("a"), Variable("b"), Variable("c")
-    sere_part = Concat((a, b))
+    sere_part: SEREExpr[str] = Concat((a, b))
     formula = Eventually(c)
     node: SuffixImpliesUniv[str] = SuffixImpliesUniv(sere_part, formula)
-    nodes: list[PSLExpr[str]] = list(psl_expr_iter(node))
+    nodes = list(psl_expr_iter(node))
     assert nodes[-1] == node
     assert sere_part in nodes
     assert formula in nodes
@@ -197,26 +199,26 @@ class TestPslExtendedRepetition:
 class TestPslSuffixImpliesNnf:
     def test_univ_no_negate_recurses_into_formula(self) -> None:
         a, b, r = Variable("a"), Variable("b"), Variable("r")
-        phi = Until(a, b)
+        phi: PSLFormula[str] = Until(a, b)
         expr = SuffixImpliesUniv(r, phi)
         assert to_nnf(expr) == SuffixImpliesUniv(r, to_nnf(phi))
 
     def test_exist_no_negate_recurses_into_formula(self) -> None:
         a, b, r = Variable("a"), Variable("b"), Variable("r")
-        phi = Until(a, b)
+        phi: PSLFormula[str] = Until(a, b)
         expr = SuffixImpliesExist(r, phi)
         assert to_nnf(expr) == SuffixImpliesExist(r, to_nnf(phi))
 
     def test_negate_univ_becomes_exist(self) -> None:
         a, b, r = Variable("a"), Variable("b"), Variable("r")
-        phi = Until(a, b)
+        phi: PSLFormula[str] = Until(a, b)
         expr = SuffixImpliesUniv(r, phi)
         expected = SuffixImpliesExist(r, to_nnf(phi, negate=True))
         assert to_nnf(expr, negate=True) == expected
 
     def test_negate_exist_becomes_univ(self) -> None:
         a, b, r = Variable("a"), Variable("b"), Variable("r")
-        phi = Until(a, b)
+        phi: PSLFormula[str] = Until(a, b)
         expr = SuffixImpliesExist(r, phi)
         expected = SuffixImpliesUniv(r, to_nnf(phi, negate=True))
         assert to_nnf(expr, negate=True) == expected
@@ -241,9 +243,11 @@ class TestPslSuffixImpliesNnf:
 
     def test_mixed_negation_pushes_into_until(self) -> None:
         a, b, r = Variable("a"), Variable("b"), Variable("r")
+        na: PSLFormula[str] = Not(a)
+        nb: PSLFormula[str] = Not(b)
         expr = SuffixImpliesUniv(r, Until(a, b))
         result = to_nnf(expr, negate=True)
-        assert result == SuffixImpliesExist(r, Release(~a, ~b))
+        assert result == SuffixImpliesExist(r, Release(na, nb))
 
 
 class TestPslClosureNnf:

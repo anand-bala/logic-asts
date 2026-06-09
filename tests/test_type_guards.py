@@ -250,6 +250,59 @@ def test_subscripted_var_types() -> None:
         _ = assert_type(tuple_expr, stl_go.STLGOExpr[tuple[str, int]])
 
 
+def test_strel_destructuring_is_precise() -> None:
+    """An And destructured from an STREL/STL-GO expr yields children of that dialect type.
+
+    The refactor's payoff: a destructured child can be passed to a function expecting the
+    dialect union with NO cast. Before the node classes were parameterized, ``args`` was
+    ``tuple[Expr, ...]`` and these calls would be type errors. The value is typed as the
+    union via a function PARAMETER so both mypy and basedpyright treat it as the declared
+    union (not the narrower assigned-value type).
+    """
+    from logic_asts import stl_go, strel
+    from logic_asts.base import And, Variable
+
+    def want_strel(x: strel.STRELExpr[str]) -> None: ...
+    def want_stlgo(x: stl_go.STLGOExpr[str]) -> None: ...
+
+    def check_strel(e: strel.STRELExpr[str]) -> None:
+        match e:
+            case And(args):
+                for child in args:
+                    want_strel(child)  # no cast: child is STRELExpr[str]
+            case _:
+                pass
+
+    def check_stlgo(e: stl_go.STLGOExpr[str]) -> None:
+        match e:
+            case And(args):
+                for child in args:
+                    want_stlgo(child)  # no cast: child is STLGOExpr[str]
+            case _:
+                pass
+
+    check_strel(And((Variable("p"), Variable("q"))))
+    check_stlgo(And((Variable("p"), Variable("q"))))
+
+
+def test_psl_destructuring_is_precise() -> None:
+    """A destructured PSL And yields children of type PSLFormula (cast-free)."""
+    from logic_asts import psl
+    from logic_asts.base import And, Variable
+
+    def want_psl(x: psl.PSLFormula[str]) -> None: ...
+
+    def check(e: psl.PSLFormula[str]) -> None:
+        match e:
+            case And(args):
+                for child in args:
+                    want_psl(child)  # no cast: child is PSLFormula[str]
+            case _:
+                pass
+
+    check(And((Variable("p"), Variable("q"))))
+
+
 def test_subscripted_types_runtime_behavior() -> None:
     """Test runtime behavior with subscripted types."""
     # With tuple[str, int], should check origin tuple type
@@ -266,3 +319,59 @@ def test_subscripted_types_runtime_behavior() -> None:
     # List would work if we had list variables (just showing the concept)
     # list_expr: object = Variable([1, 2])
     # assert not logic_asts.is_propositional_logic(list_expr, tuple[str, int])
+
+
+def test_ltl_destructuring_is_precise() -> None:
+    """A destructured LTL Until yields lhs/rhs of type LTLExpr (cast-free)."""
+    from logic_asts import ltl
+    from logic_asts.base import Variable
+    from logic_asts.ltl import Until
+
+    def want_ltl(x: ltl.LTLExpr[str]) -> None: ...
+
+    def check(e: ltl.LTLExpr[str]) -> None:
+        match e:
+            case Until(lhs, rhs):
+                want_ltl(lhs)  # no cast: lhs is LTLExpr[str]
+                want_ltl(rhs)  # no cast: rhs is LTLExpr[str]
+            case _:
+                pass
+
+    check(Until(Variable("p"), Variable("q")))
+
+
+def test_sere_destructuring_is_precise() -> None:
+    """A destructured SERE Concat yields children of type SEREExpr (cast-free)."""
+    from logic_asts import sere
+    from logic_asts.base import Variable
+    from logic_asts.sere import Concat
+
+    def want_sere(x: sere.SEREExpr[str]) -> None: ...
+
+    def check(e: sere.SEREExpr[str]) -> None:
+        match e:
+            case Concat(args):
+                for child in args:
+                    want_sere(child)  # no cast: child is SEREExpr[str]
+            case _:
+                pass
+
+    check(Concat((Variable("p"), Variable("q"))))
+
+
+def test_bool_destructuring_is_precise() -> None:
+    """A destructured propositional And yields children of type BaseExpr (cast-free)."""
+    from logic_asts import base
+    from logic_asts.base import And, Variable
+
+    def want_bool(x: base.BaseExpr[str]) -> None: ...
+
+    def check(e: base.BaseExpr[str]) -> None:
+        match e:
+            case And(args):
+                for child in args:
+                    want_bool(child)  # no cast: child is BaseExpr[str]
+            case _:
+                pass
+
+    check(And((Variable("p"), Variable("q"))))

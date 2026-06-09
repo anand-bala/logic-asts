@@ -6,14 +6,15 @@ import typing as ty
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Collection, Hashable, Iterator
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeAlias
 
-from typing_extensions import overload
-
-Var = TypeVar("Var", bound=Hashable)
+from typing_extensions import TypeVar, overload
 
 if TYPE_CHECKING:
     from logic_asts.base import Not, Variable
+
+Var = TypeVar("Var", bound=Hashable)
+ChildExpr = TypeVar("ChildExpr", bound="Expr", default="Expr", covariant=True)
 
 
 class Expr(ABC):
