@@ -61,8 +61,19 @@ from logic_asts.ltl import StrongRelease as StrongRelease
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
 from logic_asts.ltl import WeakUntil as WeakUntil
+from logic_asts.ltl import is_ltl_node as is_ltl_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, check_weight_start
+
+
+def is_stlgo_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership test: is ``node`` an STL-GO node (LTL or graph op)?"""
+    return is_ltl_node(node, check_type) or isinstance(node, (GraphIncoming, GraphOutgoing))
+
+
+def _validate_stlgo_child(_instance: object, attribute: attrs.Attribute, value: object) -> None:  # type: ignore[type-arg]
+    if not is_stlgo_node(value):
+        raise TypeError(f"{attribute.name} must be an STL-GO expression, got {type(value).__name__}")
 
 
 @final
@@ -273,7 +284,7 @@ class GraphIncoming(Expr, Generic[ChildExpr]):
         - Always receive from all: G in^[-inf,inf]{A}_{s}[1,n] message
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_stlgo_child)
     graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
@@ -355,7 +366,7 @@ class GraphOutgoing(Expr, Generic[ChildExpr]):
         - Broadcast message: G out^[-inf,inf]{A}_{s}[1,n] received
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_stlgo_child)
     graphs: frozenset[str]
     edge_count: EdgeCountInterval
     weights: WeightInterval
@@ -488,4 +499,5 @@ __all__ = [
     "GraphIncoming",
     "GraphOutgoing",
     "stlgo_expr_iter",
+    "is_stlgo_node",
 ]

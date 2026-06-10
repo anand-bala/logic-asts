@@ -40,6 +40,25 @@ _CNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*$")
 _RESERVED_LITERAL_NAMES = frozenset({"0", "1", "true", "false", "True", "False", "TRUE", "FALSE"})
 
 
+def is_bool_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership test: is ``node`` a propositional-logic node?
+
+    ``check_type``, when given, additionally constrains :class:`Variable`
+    payloads via ``isinstance(node.name, check_type)``. It does not affect
+    any other node kind.
+
+    >>> is_bool_node(Variable("p"))
+    True
+    >>> is_bool_node(Variable(42), str)
+    False
+    """
+    if isinstance(node, (Implies, Equiv, Xor, And, Or, Not, Literal)):
+        return True
+    if isinstance(node, Variable):
+        return check_type is None or isinstance(node.name, check_type)
+    return False
+
+
 def _format_variable_name(name: object) -> str:
     """Format a variable name so it round-trips through ``parse_expr``.
 
@@ -587,4 +606,5 @@ __all__ = [
     "Equiv",
     "Implies",
     "bool_expr_iter",
+    "is_bool_node",
 ]

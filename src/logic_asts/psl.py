@@ -39,58 +39,31 @@ from logic_asts.ltl import (
     StrongRelease,
     Until,
     WeakUntil,
+    is_ltl_node,
 )
 from logic_asts.sere import (
     Alt,
-    Complement,
     Concat,
-    EqualRepeat,
-    FirstMatch,
     Fusion,
-    FusionRepeat,
-    GotoRepeat,
     Inter,
-    NLMInter,
     Repeat,
     SEREExpr,
+    is_sere_node,
 )
 from logic_asts.spec import Expr, ExprVisitor
 
 Var = TypeVar("Var")
 
 
-def _validates_sere(instance: object, attribute: object, value: object) -> None:
-    # Lazy import to break the circular dependency with logic_asts/__init__.py.
-    from logic_asts import is_sere_expr
-
-    if not is_sere_expr(value):
+def _validates_sere(_instance: object, attribute: object, value: object) -> None:
+    # Shallow smoke test: only the top node's dialect membership is checked.
+    if not is_sere_node(value):
         raise TypeError(f"{getattr(attribute, 'name', '<field>')} must be a SERE expression, got {type(value).__name__}")
 
 
-_SERE_ONLY_TOP_NODES: tuple[type, ...] = (
-    Concat,
-    Fusion,
-    Alt,
-    Inter,
-    NLMInter,
-    Complement,
-    FirstMatch,
-    FusionRepeat,
-    GotoRepeat,
-    EqualRepeat,
-    Repeat,
-)
-"""Node types that are SERE constructors but never valid as the top of a
-PSL formula. Boolean atoms (``Variable``, ``Literal``, ``And``, ...) are
-valid in both a SERE slot and a PSL-formula slot, so they are
-deliberately omitted here."""
-
-
-def _validates_psl(instance: object, attribute: object, value: object) -> None:
-    # Lazy import to break the circular dependency with logic_asts/__init__.py.
-    from logic_asts import is_psl_expr
-
-    if not is_psl_expr(value) or isinstance(value, _SERE_ONLY_TOP_NODES):
+def _validates_psl(_instance: object, attribute: object, value: object) -> None:
+    # Shallow smoke test: ``is_psl_formula_node`` already excludes bare SEREs.
+    if not is_psl_formula_node(value):
         raise TypeError(
             f"{getattr(attribute, 'name', '<field>')} must be a PSL formula (no bare SEREs), got {type(value).__name__}"
         )
@@ -236,6 +209,18 @@ class StrongClosure(Expr, Generic[Var]):
         return self.sere.horizon()
 
 
+def is_psl_formula_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership: is ``node`` a PSL *formula* node (no bare SERE)?"""
+    return is_ltl_node(node, check_type) or isinstance(
+        node, (SuffixImpliesUniv, SuffixImpliesExist, WeakClosure, StrongClosure)
+    )
+
+
+def is_psl_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership: is ``node`` anywhere-legal in a PSL tree (incl. SERE)?"""
+    return is_psl_formula_node(node, check_type) or is_sere_node(node, check_type)
+
+
 type PSLFormula[Var: Hashable] = (
     Variable[Var]
     | Literal
@@ -315,4 +300,6 @@ __all__ = [
     "WeakClosure",
     "StrongClosure",
     "psl_expr_iter",
+    "is_psl_formula_node",
+    "is_psl_node",
 ]

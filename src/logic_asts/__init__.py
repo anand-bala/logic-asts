@@ -55,11 +55,7 @@ def is_propositional_logic(obj: object, var_type: type[_VarT] | None = None) -> 
     if isinstance(obj, Expr):
         # Extract origin if it's a subscripted generic
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            for expr in obj.iter_subtree()
-        )
+        return all(base.is_bool_node(expr, check_type) for expr in obj.iter_subtree())
     return False
 
 
@@ -71,22 +67,7 @@ def is_ltl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
     """
     if isinstance(obj, Expr):
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(
-                expr,
-                ltl.Next
-                | ltl.StrongNext
-                | ltl.Always
-                | ltl.Eventually
-                | ltl.Until
-                | ltl.WeakUntil
-                | ltl.Release
-                | ltl.StrongRelease,
-            )
-            for expr in obj.iter_subtree()
-        )
+        return all(ltl.is_ltl_node(expr, check_type) for expr in obj.iter_subtree())
 
     return False
 
@@ -99,23 +80,7 @@ def is_strel_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Ty
     """
     if isinstance(obj, Expr):
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(
-                expr,
-                ltl.Next
-                | ltl.StrongNext
-                | ltl.Always
-                | ltl.Eventually
-                | ltl.Until
-                | ltl.WeakUntil
-                | ltl.Release
-                | ltl.StrongRelease,
-            )
-            or isinstance(expr, strel.Everywhere | strel.Somewhere | strel.Reach | strel.Escape)
-            for expr in obj.iter_subtree()
-        )
+        return all(strel.is_strel_node(expr, check_type) for expr in obj.iter_subtree())
     return False
 
 
@@ -127,23 +92,7 @@ def is_stl_go_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.T
     """
     if isinstance(obj, Expr):
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(
-                expr,
-                ltl.Next
-                | ltl.StrongNext
-                | ltl.Always
-                | ltl.Eventually
-                | ltl.Until
-                | ltl.WeakUntil
-                | ltl.Release
-                | ltl.StrongRelease,
-            )
-            or isinstance(expr, stl_go.GraphIncoming | stl_go.GraphOutgoing)
-            for expr in obj.iter_subtree()
-        )
+        return all(stl_go.is_stlgo_node(expr, check_type) for expr in obj.iter_subtree())
     return False
 
 
@@ -151,25 +100,7 @@ def is_sere_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Typ
     """Check that ``obj`` is a SERE-only expression tree."""
     if isinstance(obj, Expr):
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(
-                expr,
-                sere.Concat
-                | sere.Fusion
-                | sere.Alt
-                | sere.Inter
-                | sere.NLMInter
-                | sere.Complement
-                | sere.FirstMatch
-                | sere.FusionRepeat
-                | sere.GotoRepeat
-                | sere.EqualRepeat
-                | sere.Repeat,
-            )
-            for expr in obj.iter_subtree()
-        )
+        return all(sere.is_sere_node(expr, check_type) for expr in obj.iter_subtree())
     return False
 
 
@@ -177,40 +108,7 @@ def is_psl_expr(obj: object, var_type: type[_VarT] | None = None) -> typing.Type
     """Check that ``obj`` is a PSL-only expression tree (LTL + SERE + PSL bindings)."""
     if isinstance(obj, Expr):
         check_type = typing.get_origin(var_type) or var_type if var_type else None
-        return all(
-            isinstance(expr, Implies | Equiv | Xor | And | Or | Not | Literal)
-            or (isinstance(expr, Variable) and (check_type is None or isinstance(expr.name, check_type)))
-            or isinstance(
-                expr,
-                ltl.Next
-                | ltl.StrongNext
-                | ltl.Always
-                | ltl.Eventually
-                | ltl.Until
-                | ltl.WeakUntil
-                | ltl.Release
-                | ltl.StrongRelease,
-            )
-            or isinstance(
-                expr,
-                sere.Concat
-                | sere.Fusion
-                | sere.Alt
-                | sere.Inter
-                | sere.NLMInter
-                | sere.Complement
-                | sere.FirstMatch
-                | sere.FusionRepeat
-                | sere.GotoRepeat
-                | sere.EqualRepeat
-                | sere.Repeat,
-            )
-            or isinstance(
-                expr,
-                psl.SuffixImpliesUniv | psl.SuffixImpliesExist | psl.WeakClosure | psl.StrongClosure,
-            )
-            for expr in obj.iter_subtree()
-        )
+        return all(psl.is_psl_node(expr, check_type) for expr in obj.iter_subtree())
     return False
 
 

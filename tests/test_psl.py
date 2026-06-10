@@ -339,3 +339,22 @@ class TestPslValidators:
             Variable("r"),
             WeakClosure(Variable("a")),
         )
+
+
+class TestPslShallowValidators:
+    def test_buried_violation_not_raised_at_construction(self) -> None:
+        # Shallow smoke test: a bare SERE buried under a *shared* LTL node in
+        # the formula slot is NOT caught. Shared nodes (here Always) carry no
+        # child validator, so the illegal Concat under it slips through; only
+        # the deep is_psl_expr predicate would catch it. Documents the gap.
+        from logic_asts.ltl import Always
+        from logic_asts.sere import Concat
+
+        SuffixImpliesUniv(Variable("r"), Always(Concat((Variable("a"), Variable("b")))))  # type: ignore[arg-type]
+
+    def test_strel_node_rejected_in_sere_slot(self) -> None:
+        from logic_asts.strel import DistanceInterval, Somewhere
+
+        spatial = Somewhere(Variable("p"), DistanceInterval(0, 5))
+        with pytest.raises(TypeError):
+            WeakClosure(spatial)  # type: ignore[arg-type]

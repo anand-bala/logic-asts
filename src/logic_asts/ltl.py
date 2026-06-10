@@ -60,8 +60,21 @@ from logic_asts.base import Not as Not
 from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
+from logic_asts.base import is_bool_node as is_bool_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, convert_next_step
+
+
+def is_ltl_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership test: is ``node`` an LTL node (bool or temporal)?
+
+    >>> is_ltl_node(Always(Variable("p")))
+    True
+    """
+    return is_bool_node(node, check_type) or isinstance(
+        node,
+        (Next, StrongNext, Always, Eventually, Until, WeakUntil, Release, StrongRelease),
+    )
 
 
 @final
@@ -471,7 +484,9 @@ class Eventually(Expr, Generic[ChildExpr]):
                 assert t1 > 0  # zuban: ignore[unreachable]
                 # F[t1, t2] = X[t1] F[0,t2-t1] arg
                 # Nested nexts until t1
-                return cast(ChildExpr, next_op(Eventually(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand())
+                return cast(
+                    ChildExpr, next_op(Eventually(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand()
+                )
             case _:
                 raise RuntimeError(f"Unexpected time interval {self.interval}")
 
@@ -540,10 +555,13 @@ class Until(Expr, Generic[ChildExpr]):
                 # Just make an unbounded one here
                 return cast(ChildExpr, Until(new_lhs, new_rhs))
             case TimeInterval(t1, None):  # Unbounded end
-                return cast(ChildExpr, Always(  # zuban: ignore[unreachable]
-                    arg=Until(lhs=new_lhs, rhs=new_rhs),
-                    interval=TimeInterval(0, t1),
-                ).expand())
+                return cast(
+                    ChildExpr,
+                    Always(  # zuban: ignore[unreachable]
+                        arg=Until(lhs=new_lhs, rhs=new_rhs),
+                        interval=TimeInterval(0, t1),
+                    ).expand(),
+                )
             case TimeInterval(t1, _):
                 z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
                 until_interval = TimeInterval(t1, None)
@@ -558,16 +576,22 @@ class Until(Expr, Generic[ChildExpr]):
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
             # ! (f U g) = (!f) R (!g)
-            return cast(ChildExpr, Release(
-                self.lhs.to_nnf(negate=True, expand=False),
-                self.rhs.to_nnf(negate=True, expand=False),
+            return cast(
+                ChildExpr,
+                Release(
+                    self.lhs.to_nnf(negate=True, expand=False),
+                    self.rhs.to_nnf(negate=True, expand=False),
+                    self.interval,
+                ),
+            )
+        return cast(
+            ChildExpr,
+            Until(
+                self.lhs.to_nnf(expand=False),
+                self.rhs.to_nnf(expand=False),
                 self.interval,
-            ))
-        return cast(ChildExpr, Until(
-            self.lhs.to_nnf(expand=False),
-            self.rhs.to_nnf(expand=False),
-            self.interval,
-        ))
+            ),
+        )
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -626,10 +650,13 @@ class WeakUntil(Expr, Generic[ChildExpr]):
                 # Just make an unbounded one here
                 return cast(ChildExpr, WeakUntil(new_lhs, new_rhs))
             case TimeInterval(t1, None):  # Unbounded end
-                return cast(ChildExpr, Always(  # zuban: ignore[unreachable]
-                    arg=WeakUntil(lhs=new_lhs, rhs=new_rhs),
-                    interval=TimeInterval(0, t1),
-                ).expand())
+                return cast(
+                    ChildExpr,
+                    Always(  # zuban: ignore[unreachable]
+                        arg=WeakUntil(lhs=new_lhs, rhs=new_rhs),
+                        interval=TimeInterval(0, t1),
+                    ).expand(),
+                )
             case TimeInterval(t1, _):
                 z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
                 until_interval = TimeInterval(t1, None)
@@ -644,16 +671,22 @@ class WeakUntil(Expr, Generic[ChildExpr]):
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
             # ! (f W g) = (!f) M (!g)
-            return cast(ChildExpr, StrongRelease(
-                self.lhs.to_nnf(negate=True, expand=False),
-                self.rhs.to_nnf(negate=True, expand=False),
+            return cast(
+                ChildExpr,
+                StrongRelease(
+                    self.lhs.to_nnf(negate=True, expand=False),
+                    self.rhs.to_nnf(negate=True, expand=False),
+                    self.interval,
+                ),
+            )
+        return cast(
+            ChildExpr,
+            WeakUntil(
+                self.lhs.to_nnf(expand=False),
+                self.rhs.to_nnf(expand=False),
                 self.interval,
-            ))
-        return cast(ChildExpr, WeakUntil(
-            self.lhs.to_nnf(expand=False),
-            self.rhs.to_nnf(expand=False),
-            self.interval,
-        ))
+            ),
+        )
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -724,16 +757,22 @@ class Release(Expr, Generic[ChildExpr]):
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
             # ! (f R g) = (!f) U (!g)
-            return cast(ChildExpr, Until(
-                self.lhs.to_nnf(negate=True, expand=False),
-                self.rhs.to_nnf(negate=True, expand=False),
+            return cast(
+                ChildExpr,
+                Until(
+                    self.lhs.to_nnf(negate=True, expand=False),
+                    self.rhs.to_nnf(negate=True, expand=False),
+                    self.interval,
+                ),
+            )
+        return cast(
+            ChildExpr,
+            Release(
+                self.lhs.to_nnf(expand=False),
+                self.rhs.to_nnf(expand=False),
                 self.interval,
-            ))
-        return cast(ChildExpr, Release(
-            self.lhs.to_nnf(expand=False),
-            self.rhs.to_nnf(expand=False),
-            self.interval,
-        ))
+            ),
+        )
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -808,16 +847,22 @@ class StrongRelease(Expr, Generic[ChildExpr]):
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
             # ! (f M g) = (!f) W (!g)
-            return cast(ChildExpr, WeakUntil(
-                self.lhs.to_nnf(negate=True, expand=False),
-                self.rhs.to_nnf(negate=True, expand=False),
+            return cast(
+                ChildExpr,
+                WeakUntil(
+                    self.lhs.to_nnf(negate=True, expand=False),
+                    self.rhs.to_nnf(negate=True, expand=False),
+                    self.interval,
+                ),
+            )
+        return cast(
+            ChildExpr,
+            StrongRelease(
+                self.lhs.to_nnf(expand=False),
+                self.rhs.to_nnf(expand=False),
                 self.interval,
-            ))
-        return cast(ChildExpr, StrongRelease(
-            self.lhs.to_nnf(expand=False),
-            self.rhs.to_nnf(expand=False),
-            self.interval,
-        ))
+            ),
+        )
 
     @override
     def children(self) -> Iterator[ChildExpr]:
@@ -913,4 +958,5 @@ __all__ = [
     "Release",
     "StrongRelease",
     "ltl_expr_iter",
+    "is_ltl_node",
 ]

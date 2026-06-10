@@ -49,7 +49,25 @@ from logic_asts.base import Not as Not
 from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
+from logic_asts.base import is_bool_node as is_bool_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+
+
+def is_sere_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership test: is ``node`` a SERE node (bool or SERE op)?
+
+    >>> is_sere_node(Concat((Variable("a"), Variable("b"))))
+    True
+    """
+    return is_bool_node(node, check_type) or isinstance(
+        node,
+        (Concat, Fusion, Alt, Inter, NLMInter, Complement, FirstMatch, FusionRepeat, GotoRepeat, EqualRepeat, Repeat),
+    )
+
+
+def _validate_sere_child(_instance: object, attribute: attrs.Attribute, value: object) -> None:  # type: ignore[type-arg]
+    if not is_sere_node(value):
+        raise TypeError(f"{attribute.name} must be a SERE expression, got {type(value).__name__}")
 
 
 def _normalize_low(value: int | None) -> int:
@@ -64,7 +82,7 @@ class Repeat(Expr, Generic[ChildExpr]):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -134,7 +152,12 @@ def _flatten_same_kind(cls: type[Expr], args: tuple[Expr, ...]) -> tuple[Expr, .
 class Concat(Expr, Generic[ChildExpr]):
     r"""SERE concatenation: ``r1 ; r2 ; ... ; rn``."""
 
-    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=_validate_sere_child,
+            iterable_validator=attrs.validators.min_len(2),
+        )
+    )
 
     @override
     def __str__(self) -> str:
@@ -167,7 +190,12 @@ class Concat(Expr, Generic[ChildExpr]):
 class Fusion(Expr, Generic[ChildExpr]):
     r"""SERE fusion: ``r1 : r2 : ... : rn``."""
 
-    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=_validate_sere_child,
+            iterable_validator=attrs.validators.min_len(2),
+        )
+    )
 
     @override
     def __str__(self) -> str:
@@ -200,7 +228,12 @@ class Fusion(Expr, Generic[ChildExpr]):
 class Alt(Expr, Generic[ChildExpr]):
     r"""SERE alternation: ``r1 | r2 | ... | rn``."""
 
-    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=_validate_sere_child,
+            iterable_validator=attrs.validators.min_len(2),
+        )
+    )
 
     @override
     def __str__(self) -> str:
@@ -233,7 +266,12 @@ class Alt(Expr, Generic[ChildExpr]):
 class Inter(Expr, Generic[ChildExpr]):
     r"""SERE length-matching intersection: ``r1 && r2 && ... && rn``."""
 
-    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=_validate_sere_child,
+            iterable_validator=attrs.validators.min_len(2),
+        )
+    )
 
     @override
     def __str__(self) -> str:
@@ -275,7 +313,12 @@ class NLMInter(Expr, Generic[ChildExpr]):
     to match the same word of the same length.
     """
 
-    args: tuple[ChildExpr, ...] = attrs.field(validator=attrs.validators.min_len(2))
+    args: tuple[ChildExpr, ...] = attrs.field(
+        validator=attrs.validators.deep_iterable(
+            member_validator=_validate_sere_child,
+            iterable_validator=attrs.validators.min_len(2),
+        )
+    )
 
     @override
     def __str__(self) -> str:
@@ -317,7 +360,7 @@ class Complement(Expr, Generic[ChildExpr]):
     complement operator. See the module docstring.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
 
     @override
     def __str__(self) -> str:
@@ -364,7 +407,7 @@ class FirstMatch(Expr, Generic[ChildExpr]):
     are all outside ``L(r)``. Matches Spot's ``first_match`` operator.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
 
     @override
     def __str__(self) -> str:
@@ -407,7 +450,7 @@ class FusionRepeat(Expr, Generic[ChildExpr]):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -492,7 +535,7 @@ class GotoRepeat(Expr, Generic[ChildExpr]):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -564,7 +607,7 @@ class EqualRepeat(Expr, Generic[ChildExpr]):
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_sere_child)
     low: int | None = attrs.field(default=None)
     high: int | None = attrs.field(default=None)
 
@@ -689,4 +732,5 @@ __all__ = [
     "EqualRepeat",
     "Repeat",
     "sere_expr_iter",
+    "is_sere_node",
 ]

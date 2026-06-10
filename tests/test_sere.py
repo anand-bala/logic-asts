@@ -183,8 +183,10 @@ def test_sere_expr_iter_rejects_non_sere_node() -> None:
     from logic_asts.ltl import Eventually
     from logic_asts.sere import SEREExpr, sere_expr_iter
 
-    bad: SEREExpr[str] = cast(SEREExpr[str], Concat((Variable("a"), Eventually(Variable("b")))))
+    # A non-SERE child is now rejected at construction by the shallow child
+    # validator, before sere_expr_iter is ever reached.
     with pytest.raises(TypeError):
+        bad: SEREExpr[str] = cast(SEREExpr[str], Concat((Variable("a"), Eventually(Variable("b")))))
         list(sere_expr_iter(bad))
 
 
@@ -803,3 +805,25 @@ class TestSereToNnf:
         expr = ~inner
         _cmp: SEREExpr[str] = expr.to_nnf()
         assert _cmp == Complement(inner)
+
+
+class TestSereChildValidators:
+    def test_concat_rejects_temporal_child(self) -> None:
+        from logic_asts.ltl import Always
+        from logic_asts.sere import Concat
+
+        with pytest.raises(TypeError):
+            Concat((Always(Variable("p")), Variable("b")))  # type: ignore[arg-type]
+
+    def test_repeat_rejects_temporal_child(self) -> None:
+        from logic_asts.ltl import Always
+        from logic_asts.sere import Repeat
+
+        with pytest.raises(TypeError):
+            Repeat(Always(Variable("p")), 0, None)  # type: ignore[arg-type]
+
+    def test_concat_accepts_sere_children(self) -> None:
+        from logic_asts.sere import Concat, Repeat
+
+        # Should not raise.
+        Concat((Variable("a"), Repeat(Variable("b"), 0, None)))

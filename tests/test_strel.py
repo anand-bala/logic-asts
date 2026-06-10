@@ -443,3 +443,26 @@ class TestSTRELCases:
             rich.print("parsed=", parsed)
             rich.print("expected=", expected_ast)
             raise e
+
+
+class TestStrelChildValidators:
+    def test_somewhere_rejects_sere_child(self) -> None:
+        from logic_asts.sere import Concat
+        from logic_asts.strel import DistanceInterval, Somewhere
+
+        with pytest.raises(TypeError):
+            Somewhere(Concat((Variable("a"), Variable("b"))), DistanceInterval(0, 5))  # type: ignore[arg-type]
+
+    def test_reach_rejects_sere_child(self) -> None:
+        from logic_asts.sere import Concat
+        from logic_asts.strel import DistanceInterval, Reach
+
+        with pytest.raises(TypeError):
+            Reach(Concat((Variable("a"), Variable("b"))), Variable("g"), DistanceInterval(0, 5))  # type: ignore[arg-type]
+
+    def test_somewhere_accepts_ltl_child(self) -> None:
+        from logic_asts.ltl import Always
+        from logic_asts.strel import DistanceInterval, Somewhere
+
+        # Should not raise.
+        Somewhere(Always(Variable("p")), DistanceInterval(0, 5))

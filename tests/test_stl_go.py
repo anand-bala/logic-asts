@@ -440,3 +440,29 @@ class TestSTLGoProperties:
         assert wi.start == -2.5
         assert wi.end == -0.5
         assert wi.duration() == 2.0
+
+
+class TestStlGoChildValidators:
+    def test_graph_incoming_rejects_sere_child(self) -> None:
+        from logic_asts.sere import Concat
+
+        with pytest.raises(TypeError):
+            GraphIncoming(
+                arg=Concat((Variable("a"), Variable("b"))),  # type: ignore[arg-type]
+                graphs=frozenset({"c"}),
+                edge_count=EdgeCountInterval(1, None),
+                weights=WeightInterval(None, None),
+                quantifier=Quantifier.EXISTS,
+            )
+
+    def test_graph_incoming_accepts_ltl_child(self) -> None:
+        from logic_asts.ltl import Always
+
+        # Should not raise.
+        GraphIncoming(
+            arg=Always(Variable("p")),
+            graphs=frozenset({"c"}),
+            edge_count=EdgeCountInterval(1, None),
+            weights=WeightInterval(None, None),
+            quantifier=Quantifier.EXISTS,
+        )

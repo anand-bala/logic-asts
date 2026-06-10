@@ -59,8 +59,19 @@ from logic_asts.ltl import StrongRelease as StrongRelease
 from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
 from logic_asts.ltl import WeakUntil as WeakUntil
+from logic_asts.ltl import is_ltl_node as is_ltl_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start
+
+
+def is_strel_node(node: object, check_type: type | None = None) -> bool:
+    """Shallow membership test: is ``node`` a STREL node (LTL or spatial)?"""
+    return is_ltl_node(node, check_type) or isinstance(node, (Everywhere, Somewhere, Reach, Escape))
+
+
+def _validate_strel_child(_instance: object, attribute: attrs.Attribute, value: object) -> None:  # type: ignore[type-arg]
+    if not is_strel_node(value):
+        raise TypeError(f"{attribute.name} must be a STREL expression, got {type(value).__name__}")
 
 
 @final
@@ -124,7 +135,7 @@ class Everywhere(Expr, Generic[ChildExpr]):
         - Nested: G everywhere[0,10] property
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_strel_child)
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -176,7 +187,7 @@ class Somewhere(Expr, Generic[ChildExpr]):
         - Temporal-spatial: F somewhere[0,10] ally
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_strel_child)
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -226,7 +237,7 @@ class Escape(Expr, Generic[ChildExpr]):
         - With metric: escape^hops[0,5] blocked_region
     """
 
-    arg: ChildExpr
+    arg: ChildExpr = attrs.field(validator=_validate_strel_child)
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -282,8 +293,8 @@ class Reach(Expr, Generic[ChildExpr]):
         - Spatio-temporal: (F location1) reach[0,30] (F location2)
     """
 
-    lhs: ChildExpr
-    rhs: ChildExpr
+    lhs: ChildExpr = attrs.field(validator=_validate_strel_child)
+    rhs: ChildExpr = attrs.field(validator=_validate_strel_child)
     interval: DistanceInterval
     dist_fn: str | None = None
 
@@ -294,12 +305,15 @@ class Reach(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        return cast(ChildExpr, Reach(
-            lhs=self.lhs.expand(),
-            rhs=self.rhs.expand(),
-            interval=self.interval,
-            dist_fn=self.dist_fn,
-        ))
+        return cast(
+            ChildExpr,
+            Reach(
+                lhs=self.lhs.expand(),
+                rhs=self.rhs.expand(),
+                interval=self.interval,
+                dist_fn=self.dist_fn,
+            ),
+        )
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -409,4 +423,5 @@ __all__ = [
     "Escape",
     "Reach",
     "strel_expr_iter",
+    "is_strel_node",
 ]
