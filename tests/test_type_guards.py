@@ -262,8 +262,8 @@ def test_strel_destructuring_is_precise() -> None:
     from logic_asts import stl_go, strel
     from logic_asts.base import And, Variable
 
-    def want_strel(x: strel.STRELExpr[str]) -> None: ...
-    def want_stlgo(x: stl_go.STLGOExpr[str]) -> None: ...
+    def want_strel(_: strel.STRELExpr[str]) -> None: ...
+    def want_stlgo(_: stl_go.STLGOExpr[str]) -> None: ...
 
     def check_strel(e: strel.STRELExpr[str]) -> None:
         match e:
@@ -290,7 +290,7 @@ def test_psl_destructuring_is_precise() -> None:
     from logic_asts import psl
     from logic_asts.base import And, Variable
 
-    def want_psl(x: psl.PSLFormula[str]) -> None: ...
+    def want_psl(_: psl.PSLFormula[str]) -> None: ...
 
     def check(e: psl.PSLFormula[str]) -> None:
         match e:
@@ -327,7 +327,7 @@ def test_ltl_destructuring_is_precise() -> None:
     from logic_asts.base import Variable
     from logic_asts.ltl import Until
 
-    def want_ltl(x: ltl.LTLExpr[str]) -> None: ...
+    def want_ltl(_: ltl.LTLExpr[str]) -> None: ...
 
     def check(e: ltl.LTLExpr[str]) -> None:
         match e:
@@ -346,7 +346,7 @@ def test_sere_destructuring_is_precise() -> None:
     from logic_asts.base import Variable
     from logic_asts.sere import Concat
 
-    def want_sere(x: sere.SEREExpr[str]) -> None: ...
+    def want_sere(_: sere.SEREExpr[str]) -> None: ...
 
     def check(e: sere.SEREExpr[str]) -> None:
         match e:
@@ -364,7 +364,7 @@ def test_bool_destructuring_is_precise() -> None:
     from logic_asts import base
     from logic_asts.base import And, Variable
 
-    def want_bool(x: base.BaseExpr[str]) -> None: ...
+    def want_bool(_: base.BaseExpr[str]) -> None: ...
 
     def check(e: base.BaseExpr[str]) -> None:
         match e:

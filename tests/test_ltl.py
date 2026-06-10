@@ -453,4 +453,4 @@ def test_semicolon_no_longer_parses_as_ltl() -> None:
     import lark.exceptions
 
     with pytest.raises(lark.exceptions.LarkError):
-        logic_asts.parse_expr("p ; q", syntax="ltl")
+        _ = logic_asts.parse_expr("p ; q", syntax="ltl")

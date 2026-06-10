@@ -459,7 +459,7 @@ class TestStlGoChildValidators:
         from logic_asts.ltl import Always
 
         # Should not raise.
-        GraphIncoming(
+        _ = GraphIncoming(
             arg=Always(Variable("p")),
             graphs=frozenset({"c"}),
             edge_count=EdgeCountInterval(1, None),

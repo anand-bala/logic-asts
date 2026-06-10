@@ -465,4 +465,4 @@ class TestStrelChildValidators:
         from logic_asts.strel import DistanceInterval, Somewhere
 
         # Should not raise.
-        Somewhere(Always(Variable("p")), DistanceInterval(0, 5))
+        _ = Somewhere(Always(Variable("p")), DistanceInterval(0, 5))

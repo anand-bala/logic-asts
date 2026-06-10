@@ -85,14 +85,14 @@ def assert_spot_accepts(*formulas: str) -> None:
     formulas reported by ``ltlfilt --count`` must equal ``len(formulas)``.
     """
     if HAS_SPOT == "lib":
-        import spot  # zuban: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
+        import spot  # zuban: ignore[import-not-found]  # pyright: ignore[reportMissingTypeStubs]
 
         for formula in formulas:
             try:
                 f = spot.formula(formula)
             except Exception as e:
                 raise AssertionError(f"Failed to parse formula `{formula}`") from e
-            if not f.is_ltl_formula():
+            if not f.is_ltl_formula():  # type: ignore[attr-defined]
                 raise AssertionError(f"Parsed formula `{formula}` is not a valid LTL formula")
 
     elif HAS_SPOT == "cli":
@@ -136,12 +136,12 @@ def assert_spot_accepts_psl(*formulas: str) -> None:
 
         for formula in formulas:
             try:
-                spot.formula(formula)
+                _ = spot.formula(formula)
             except Exception:
                 # Spot may reject a bare SERE expression at the top level;
                 # wrap it in ``{...}!`` to coerce it into a PSL formula.
                 try:
-                    spot.formula("{" + formula + "}!")
+                    _ = spot.formula("{" + formula + "}!")
                 except Exception as e:
                     raise AssertionError(f"Failed to parse formula `{formula}` (also tried wrapping)") from e
 
@@ -184,7 +184,7 @@ class TestSpotSerePsl:
     @pytest.mark.parametrize("formula", SERE_INPUTS)
     def test_sere_parses(self, formula: str) -> None:
         # logic_asts must accept the input under the ``sere`` dialect.
-        logic_asts.parse_expr(formula, syntax="sere")
+        _ = logic_asts.parse_expr(formula, syntax="sere")
 
     @pytest.mark.parametrize("formula", SERE_INPUTS)
     def test_sere_spot_accepts(self, formula: str) -> None:
@@ -198,7 +198,7 @@ class TestSpotSerePsl:
 
     @pytest.mark.parametrize("formula", PSL_INPUTS)
     def test_psl_parses(self, formula: str) -> None:
-        logic_asts.parse_expr(formula, syntax="psl")
+        _ = logic_asts.parse_expr(formula, syntax="psl")
 
     @pytest.mark.parametrize("formula", PSL_INPUTS)
     def test_psl_spot_accepts(self, formula: str) -> None:
@@ -234,6 +234,6 @@ class TestSpotSerePsl:
 )
 @given(formula=from_lark(_LTL_GRAMMAR).filter(lambda s: len(s) <= _MAX_FORMULA_LEN))
 def test_logic_asts_matches_spot(formula: str) -> None:
-    assume(SPOT_DIVERGENT_PATTERN.search(formula) is None)
+    _ = assume(SPOT_DIVERGENT_PATTERN.search(formula) is None)
     expr = logic_asts.parse_expr(formula, syntax="ltl")
     assert_spot_accepts(formula, str(expr))

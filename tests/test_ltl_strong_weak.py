@@ -149,7 +149,7 @@ class TestExpandCorrectness:
         # Walk down and verify all are StrongNext
         current: ltl.LTLExpr[str] = expanded
         depth = 0
-        while isinstance(current, ltl.StrongNext):
+        while isinstance(current, ltl.StrongNext):  # pyright: ignore[reportUnnecessaryIsInstance]
             depth += 1
             current = current.arg
         assert depth == 3

@@ -46,12 +46,12 @@ class TestRepeat:
     def test_low_must_be_non_negative(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            Repeat(a, -1, None)
+            _ = Repeat(a, -1, None)
 
     def test_low_must_be_le_high(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            Repeat(a, 3, 2)
+            _ = Repeat(a, 3, 2)
 
     def test_children_yields_arg(self) -> None:
         a = Variable("a")
@@ -85,7 +85,7 @@ class TestConcat:
     def test_min_length_two(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            Concat((a,))
+            _ = Concat((a,))
 
     def test_children_yields_args(self) -> None:
         a, b = Variable("a"), Variable("b")
@@ -163,7 +163,7 @@ class TestNLMInter:
 
     def test_min_len_two(self) -> None:
         with pytest.raises(ValueError):
-            NLMInter((Variable("a"),))
+            _ = NLMInter((Variable("a"),))
 
 
 def test_sere_expr_iter_yields_postorder() -> None:
@@ -187,7 +187,7 @@ def test_sere_expr_iter_rejects_non_sere_node() -> None:
     # validator, before sere_expr_iter is ever reached.
     with pytest.raises(TypeError):
         bad: SEREExpr[str] = cast(SEREExpr[str], Concat((Variable("a"), Eventually(Variable("b")))))
-        list(sere_expr_iter(bad))
+        _ = list(sere_expr_iter(bad))
 
 
 class TestComplement:
@@ -284,12 +284,12 @@ class TestFusionRepeat:
     def test_low_must_be_non_negative(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            FusionRepeat(a, -1, None)
+            _ = FusionRepeat(a, -1, None)
 
     def test_low_must_be_le_high(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            FusionRepeat(a, 3, 2)
+            _ = FusionRepeat(a, 3, 2)
 
     def test_children_yields_arg(self) -> None:
         a = Variable("a")
@@ -355,12 +355,12 @@ class TestGotoRepeat:
     def test_low_must_be_non_negative(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            GotoRepeat(a, -1, None)
+            _ = GotoRepeat(a, -1, None)
 
     def test_low_must_be_le_high(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            GotoRepeat(a, 3, 2)
+            _ = GotoRepeat(a, 3, 2)
 
     def test_children_yields_arg(self) -> None:
         a = Variable("a")
@@ -414,12 +414,12 @@ class TestEqualRepeat:
     def test_low_must_be_non_negative(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            EqualRepeat(a, -1, None)
+            _ = EqualRepeat(a, -1, None)
 
     def test_low_must_be_le_high(self) -> None:
         a = Variable("a")
         with pytest.raises(ValueError):
-            EqualRepeat(a, 3, 2)
+            _ = EqualRepeat(a, 3, 2)
 
     def test_children_yields_arg(self) -> None:
         a = Variable("a")
@@ -598,7 +598,7 @@ def test_tilde_rejected_as_boolean_negation() -> None:
     from logic_asts import parse_expr
 
     with _pytest.raises(LarkError):
-        parse_expr("~a", syntax="base")
+        _ = parse_expr("~a", syntax="base")
 
 
 class TestParseFirstMatch:
@@ -826,4 +826,4 @@ class TestSereChildValidators:
         from logic_asts.sere import Concat, Repeat
 
         # Should not raise.
-        Concat((Variable("a"), Repeat(Variable("b"), 0, None)))
+        _ = Concat((Variable("a"), Repeat(Variable("b"), 0, None)))

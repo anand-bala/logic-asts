@@ -326,16 +326,16 @@ class TestPslValidators:
 
     def test_well_typed_constructions_succeed(self) -> None:
         # Should not raise.
-        WeakClosure(Variable("a"))
-        WeakClosure(Concat((Variable("a"), Variable("b"))))
-        StrongClosure(Variable("a"))
-        SuffixImpliesUniv(Variable("a"), Variable("b"))
-        SuffixImpliesUniv(
+        _ = WeakClosure(Variable("a"))
+        _ = WeakClosure(Concat((Variable("a"), Variable("b"))))
+        _ = StrongClosure(Variable("a"))
+        _ = SuffixImpliesUniv(Variable("a"), Variable("b"))
+        _ = SuffixImpliesUniv(
             Concat((Variable("a"), Variable("b"))),
             Always(Variable("p")),
         )
         # PSL nesting: formula slot may itself be a closure / suffix implication.
-        SuffixImpliesUniv(
+        _ = SuffixImpliesUniv(
             Variable("r"),
             WeakClosure(Variable("a")),
         )
