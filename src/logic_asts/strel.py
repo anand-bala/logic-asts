@@ -146,7 +146,7 @@ class Everywhere(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        return cast(ChildExpr, Everywhere(self.arg.expand(), self.interval, self.dist_fn))
+        return cast(ChildExpr, Not(Somewhere(Not(self.arg), self.interval, self.dist_fn)).expand())
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -198,7 +198,7 @@ class Somewhere(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        return cast(ChildExpr, Somewhere(self.arg.expand(), self.interval, self.dist_fn))
+        return cast(ChildExpr, Reach(Literal(True), self.arg.expand(), self.interval, self.dist_fn))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:

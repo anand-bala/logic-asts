@@ -16,7 +16,7 @@ import rich
 import logic_asts
 import logic_asts.ltl as ltl
 import logic_asts.strel as strel
-from logic_asts.base import And, Variable
+from logic_asts.base import And, Literal, Not, Variable
 from logic_asts.spec import Expr
 
 
@@ -100,18 +100,22 @@ class TestEverywhereOperator:
         assert children[0] == p
 
     def test_everywhere_expand(self) -> None:
-        """Test expansion of Everywhere."""
+        """Test expansion of Everywhere into its dual reachability form."""
         p = Variable("p")
-        expr = strel.Everywhere(p, strel.DistanceInterval(0, 5))
-        expanded = expr.expand()
-        assert isinstance(expanded, strel.Everywhere)
+        interval = strel.DistanceInterval(0, 5)
+        expr = strel.Everywhere(p, interval)
+        expanded: Expr = expr.expand()
+        # everywhere[d] p == ~ somewhere[d] ~p == ~ (True reach[d] ~p)
+        assert expanded == Not(strel.Reach(Literal(True), Not(p), interval))
 
     def test_everywhere_to_nnf(self) -> None:
         """Test NNF conversion of Everywhere."""
         p = Variable("p")
-        expr = strel.Everywhere(~p, strel.DistanceInterval(0, 5))
-        nnf = expr.to_nnf()
-        assert isinstance(nnf, strel.Everywhere)
+        interval = strel.DistanceInterval(0, 5)
+        expr = strel.Everywhere(~p, interval)
+        nnf: Expr = expr.to_nnf()
+        # everywhere[d] ~p == ~ (True reach[d] p)
+        assert nnf == Not(strel.Reach(Literal(True), p, interval))
 
     def test_everywhere_horizon(self) -> None:
         """Test horizon of Everywhere."""
@@ -161,18 +165,22 @@ class TestSomewhereOperator:
         assert children[0] == p
 
     def test_somewhere_expand(self) -> None:
-        """Test expansion of Somewhere."""
+        """Test expansion of Somewhere into its reachability form."""
         p = Variable("p")
-        expr = strel.Somewhere(p, strel.DistanceInterval(0, 5))
-        expanded = expr.expand()
-        assert isinstance(expanded, strel.Somewhere)
+        interval = strel.DistanceInterval(0, 5)
+        expr = strel.Somewhere(p, interval)
+        expanded: Expr = expr.expand()
+        # somewhere[d] p == True reach[d] p
+        assert expanded == strel.Reach(Literal(True), p, interval)
 
     def test_somewhere_to_nnf(self) -> None:
         """Test NNF conversion of Somewhere."""
         p = Variable("p")
-        expr = strel.Somewhere(~p, strel.DistanceInterval(0, 5))
-        nnf = expr.to_nnf()
-        assert isinstance(nnf, strel.Somewhere)
+        interval = strel.DistanceInterval(0, 5)
+        expr = strel.Somewhere(~p, interval)
+        nnf: Expr = expr.to_nnf()
+        # somewhere[d] ~p == True reach[d] ~p
+        assert nnf == strel.Reach(Literal(True), Not(p), interval)
 
     def test_somewhere_horizon(self) -> None:
         """Test horizon of Somewhere."""
