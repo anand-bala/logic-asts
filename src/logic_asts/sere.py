@@ -383,6 +383,12 @@ class Complement(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
+        if isinstance(self.arg, Complement):
+            # Flatten it
+            return cast(ChildExpr, self.arg.arg.expand())
+        if isinstance(self.arg, Literal):
+            # Push the negation inwards
+            return cast(ChildExpr, Literal(not self.arg.value))
         return cast(ChildExpr, Complement(self.arg.expand()))
 
     @override
