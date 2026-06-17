@@ -92,6 +92,9 @@ class Repeat(Expr, Generic[ChildExpr]):
             raise ValueError(f"Repeat.low must be non-negative, got {self.low}")
         if self.high is not None and lo > self.high:
             raise ValueError(f"Repeat.low ({self.low}) must be <= Repeat.high ({self.high})")
+        if self.high == 0:
+            # Effectively "accepts the empty string only" and we should canonicalize `arg`
+            object.__setattr__(self, "arg", Literal(True))
 
     @override
     def __str__(self) -> str:
@@ -126,6 +129,11 @@ class Repeat(Expr, Generic[ChildExpr]):
         if expand:
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
+            if self.is_epsilon():
+                return cast(ChildExpr, Repeat(Literal(True), 1, None))
+            if isinstance(self.arg, Literal) and self.arg.value is True and self.low == 1 and self.high is None:
+                # this is the complement of the epsilon node, do return epsilon.
+                return cast(ChildExpr, Repeat(Literal(True), 0, 0))
             return cast(ChildExpr, Complement(self))
         return cast(ChildExpr, self)
 
@@ -135,6 +143,9 @@ class Repeat(Expr, Generic[ChildExpr]):
         if self.high is None:
             return math.inf
         return self.high * arg_hrz
+
+    def is_epsilon(self) -> bool:
+        return self.high == 0
 
 
 def _flatten_same_kind(cls: type[Expr], args: tuple[Expr, ...]) -> tuple[Expr, ...]:
