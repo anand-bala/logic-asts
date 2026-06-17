@@ -407,7 +407,7 @@ class Complement(Expr, Generic[ChildExpr]):
         if expand:
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
-            return self.arg
+            return cast(ChildExpr, self.arg.to_nnf(negate=False, expand=False))
         return cast(ChildExpr, self)
 
     @override
