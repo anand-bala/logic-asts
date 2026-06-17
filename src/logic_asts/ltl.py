@@ -46,11 +46,11 @@ from __future__ import annotations
 import itertools
 import math
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, cast, final
+from typing import Generic, cast, final
 
 import attrs
 from attrs import frozen
-from typing_extensions import override
+from typing_extensions import TypeGuard, TypeVar, override
 
 from logic_asts.base import And as And
 from logic_asts.base import Equiv as Equiv
@@ -64,8 +64,10 @@ from logic_asts.base import is_bool_node as is_bool_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, convert_next_step
 
+_T = TypeVar("_T", bound=Hashable, default=Hashable)
 
-def is_ltl_node(node: object, check_type: type | None = None) -> bool:
+
+def is_ltl_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[LTLExpr[_T]]:
     """Shallow membership test: is ``node`` an LTL node (bool or temporal)?
 
     >>> is_ltl_node(Always(Variable("p")))

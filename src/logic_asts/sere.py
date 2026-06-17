@@ -39,7 +39,7 @@ from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
-from typing_extensions import override
+from typing_extensions import TypeGuard, override
 
 from logic_asts.base import And as And
 from logic_asts.base import Equiv as Equiv
@@ -53,7 +53,7 @@ from logic_asts.base import is_bool_node as is_bool_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 
 
-def is_sere_node(node: object, check_type: type | None = None) -> bool:
+def is_sere_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[SEREExpr[_T]]:
     """Shallow membership test: is ``node`` a SERE node (bool or SERE op)?
 
     >>> is_sere_node(Concat((Variable("a"), Variable("b"))))

@@ -18,7 +18,7 @@ from collections.abc import Hashable, Iterator
 from typing import Generic, TypeVar, cast, final
 
 from attrs import field, frozen
-from typing_extensions import override
+from typing_extensions import TypeGuard, override
 
 from logic_asts.base import (
     And,
@@ -209,14 +209,14 @@ class StrongClosure(Expr, Generic[Var]):
         return self.sere.horizon()
 
 
-def is_psl_formula_node(node: object, check_type: type | None = None) -> bool:
+def is_psl_formula_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[PSLFormula[_T]]:
     """Shallow membership: is ``node`` a PSL *formula* node (no bare SERE)?"""
     return is_ltl_node(node, check_type) or isinstance(
         node, (SuffixImpliesUniv, SuffixImpliesExist, WeakClosure, StrongClosure)
     )
 
 
-def is_psl_node(node: object, check_type: type | None = None) -> bool:
+def is_psl_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[PSLExpr[_T]]:
     """Shallow membership: is ``node`` anywhere-legal in a PSL tree (incl. SERE)?"""
     return is_psl_formula_node(node, check_type) or is_sere_node(node, check_type)
 

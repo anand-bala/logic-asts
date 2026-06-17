@@ -28,7 +28,7 @@ from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import field, frozen
-from typing_extensions import Self, override
+from typing_extensions import Self, TypeGuard, override
 
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 
@@ -40,7 +40,7 @@ _CNAME_RE = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*$")
 _RESERVED_LITERAL_NAMES = frozenset({"0", "1", "true", "false", "True", "False", "TRUE", "FALSE"})
 
 
-def is_bool_node(node: object, check_type: type | None = None) -> bool:
+def is_bool_node[T: Hashable](node: object, check_type: type[T] | None = None) -> TypeGuard[BoolExpr[T]]:
     """Shallow membership test: is ``node`` a propositional-logic node?
 
     ``check_type``, when given, additionally constrains :class:`Variable`

@@ -42,7 +42,7 @@ from typing import Generic, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
-from typing_extensions import override
+from typing_extensions import TypeGuard, override
 
 from logic_asts.base import And as And
 from logic_asts.base import Equiv as Equiv
@@ -66,7 +66,7 @@ from logic_asts.spec import ChildExpr, Expr, ExprVisitor
 from logic_asts.utils import check_positive, check_start, check_weight_start
 
 
-def is_stlgo_node(node: object, check_type: type | None = None) -> bool:
+def is_stlgo_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[STLGOExpr[_T]]:
     """Shallow membership test: is ``node`` an STL-GO node (LTL or graph op)?"""
     return is_ltl_node(node, check_type) or isinstance(node, (GraphIncoming, GraphOutgoing))
 
