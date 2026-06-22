@@ -4,11 +4,12 @@ import math
 
 import pytest
 
-from logic_asts.base import Variable
+from logic_asts.base import Literal, Variable
 from logic_asts.sere import (
     Alt,
     Complement,
     Concat,
+    Empty,
     EqualRepeat,
     FirstMatch,
     Fusion,
@@ -229,6 +230,138 @@ class TestComplement:
         inner: SEREExpr[str] = NLMInter((NLMInter((a, b)), c))
         _cmp: SEREExpr[str] = Complement(inner).expand()
         assert _cmp == Complement(NLMInter((a, b, c)))
+
+
+class TestSereDunders:
+    """Test SERE operator dunders: ~r, r|b, r&b, and flattening."""
+
+    def test_invert_returns_complement(self) -> None:
+        a = Variable("a")
+        r = Repeat(a, 0, None)
+        result = ~r
+        assert result == Complement(r)  # type: ignore[comparison-overlap]
+
+    def test_or_returns_alt(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        result = r | b
+        assert result == Alt((r, b))  # type: ignore[comparison-overlap]
+
+    def test_or_produces_alt_instance(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        result = r | b
+        assert isinstance(result, Alt)
+
+    def test_and_returns_inter(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        result = r & b
+        assert result == Inter((r, b))  # type: ignore[comparison-overlap]
+
+    def test_and_produces_inter_instance(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        result = r & b
+        assert isinstance(result, Inter)
+
+    def test_alt_flattens_via_nary_fold(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        expr1 = Alt((a, b))
+        expr2 = expr1 | r
+        assert expr2 == Alt((a, b, r))
+
+    def test_inter_flattens_via_nary_fold(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        r = Repeat(a, 0, None)
+        expr1 = Inter((a, b))
+        expr2 = expr1 & r
+        assert expr2 == Inter((a, b, r))
+
+
+class TestComplementInvert:
+    """Test double-complement elimination: ~~r = r."""
+
+    def test_double_complement_elimination(self) -> None:
+        a = Variable("a")
+        inner = Repeat(a, 0, None)
+        assert ~Complement(inner) == inner
+
+
+class TestEmpty:
+    """Test the Empty node (epsilon, zero-length match)."""
+
+    def test_complement_of_empty_returns_sigma_plus(self) -> None:
+        result = ~Empty()
+        expected = Repeat(Literal(True), 1, None)
+        assert result == expected
+
+    def test_empty_or_returns_alt(self) -> None:
+        a = Variable("a")
+        r = Repeat(a, 0, None)
+        result = Empty() | r
+        assert result == Alt((Empty(), r))  # type: ignore[comparison-overlap]
+
+    def test_empty_and_returns_inter(self) -> None:
+        a = Variable("a")
+        r = Repeat(a, 0, None)
+        result = Empty() & r
+        assert result == Inter((Empty(), r))  # type: ignore[comparison-overlap]
+
+    def test_empty_expand_returns_self(self) -> None:
+        e = Empty()
+        _cmp: SEREExpr[str] = e.expand()
+        assert _cmp == e
+
+    def test_empty_to_nnf_returns_self(self) -> None:
+        e = Empty()
+        _cmp = e.to_nnf()
+        assert _cmp == e
+
+    def test_empty_to_nnf_negate_returns_sigma_plus(self) -> None:
+        e = Empty()
+        result = e.to_nnf(negate=True)
+        expected = Repeat(Literal(True), 1, None)
+        assert result == expected
+
+    def test_empty_str_representation(self) -> None:
+        e = Empty()
+        assert str(e) == "1[*0]"
+
+    def test_empty_horizon_is_zero(self) -> None:
+        e = Empty()
+        assert e.horizon() == 0
+
+    def test_empty_children_is_empty_list(self) -> None:
+        e = Empty()
+        assert list(e.children()) == []
+
+
+class TestEmptyConcatIdentity:
+    """Test Empty as the identity of concatenation."""
+
+    def test_concat_with_empty_single_survivor_collapses(self) -> None:
+        a = Variable("a")
+        expr = Concat((Empty(), a))
+        _cmp: SEREExpr[str] = expr.expand()
+        assert _cmp == a
+
+    def test_concat_all_empty_collapses_to_empty(self) -> None:
+        expr = Concat((Empty(), Empty()))
+        _cmp: SEREExpr[str] = expr.expand()
+        assert _cmp == Empty()
+
+    def test_concat_empty_with_multiple_args(self) -> None:
+        a, b = Variable("a"), Variable("b")
+        expr = Concat((Empty(), a, b))
+        _cmp: SEREExpr[str] = expr.expand()
+        assert _cmp == Concat((a, b))
+
+    def test_repeat_empty_collapses_to_empty(self) -> None:
+        expr = Repeat(Empty(), 0, None)
+        _cmp: SEREExpr[str] = expr.expand()
+        assert _cmp == Empty()
 
 
 class TestFirstMatch:

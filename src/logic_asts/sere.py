@@ -34,8 +34,10 @@ arbitrary SERE operands here, not just Boolean formulas as in Spot.
 from __future__ import annotations
 
 import math
+import typing
+from abc import ABC
 from collections.abc import Hashable, Iterator
-from typing import Generic, TypeVar, cast, final
+from typing import Generic, Self, TypeVar, cast, final
 
 import attrs
 from attrs import frozen
@@ -51,6 +53,7 @@ from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.base import is_bool_node as is_bool_node
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.utils import flatten_nary_args, nary_fold
 
 
 def is_sere_node[_T: Hashable](node: object, check_type: type[_T] | None = None) -> TypeGuard[SEREExpr[_T]]:
@@ -61,7 +64,7 @@ def is_sere_node[_T: Hashable](node: object, check_type: type[_T] | None = None)
     """
     return is_bool_node(node, check_type) or isinstance(
         node,
-        (Concat, Fusion, Alt, Inter, NLMInter, Complement, FirstMatch, FusionRepeat, GotoRepeat, EqualRepeat, Repeat),
+        (Empty, Concat, Fusion, Alt, Inter, NLMInter, Complement, FirstMatch, FusionRepeat, GotoRepeat, EqualRepeat, Repeat),
     )
 
 
@@ -74,9 +77,83 @@ def _normalize_low(value: int | None) -> int:
     return 0 if value is None else value
 
 
+class SEREOp(Expr, ABC):
+    r"""Mixin supplying SERE-level operator dunders for SERE-specific nodes.
+
+    For SERE operators the Python dunders denote the SERE connectives,
+    not the Boolean ones inherited from :class:`Expr`:
+
+    - ``~r``      -> :class:`Complement`
+    - ``r1 | r2`` -> :class:`Alt`   (alternation)
+    - ``r1 & r2`` -> :class:`Inter` (length-matching intersection)
+
+    Boolean leaves (:class:`Variable`, :class:`Literal`, :class:`And`,
+    :class:`Or`, :class:`Not`) keep their Boolean dunders, so a Boolean
+    state formula ``a | b`` is still a single-letter ``Or`` (which
+    coincides with ``Alt`` on Boolean operands).
+
+    Note:
+        Operator dispatch is left-biased: ``r | a`` (SERE node on the
+        left) yields ``Alt``, but ``a | r`` (a Boolean leaf on the left)
+        yields a Boolean ``Or`` because the leaf's ``__or__`` never
+        defers. Lead with the SERE node, or use the constructor, when
+        combining a Boolean leaf with a compound SERE operand.
+    """
+
+    @override
+    def __invert__(self) -> Self:
+        return cast(Self, Complement(self))
+
+    @override
+    def __or__(self, other: Expr) -> Self:
+        return cast(Self, nary_fold(Alt, (self, other)))
+
+    @override
+    def __and__(self, other: Expr) -> Self:
+        return cast(Self, nary_fold(Inter, (self, other)))
+
+
 @final
 @frozen
-class Repeat(Expr, Generic[ChildExpr]):
+class Empty(SEREOp):
+    r"""Zero-length matching input: :math:`\varepsilon`
+
+    This is equivalent to ``Repeat(Literal(True), 0, 0)``.
+    """
+
+    @override
+    def __str__(self) -> str:
+        return str(Repeat(Literal(True), 0, 0))
+
+    @override
+    def expand(self) -> Self:
+        return self
+
+    @override
+    def to_nnf(self, *, negate: bool = False, expand: bool = True) -> Repeat | Empty:
+        _ = expand
+        if negate:
+            return Repeat(Literal(True), low=1, high=None)
+        else:
+            return Empty()
+
+    @override
+    def children(self) -> Iterator[Expr]:
+        yield from iter(())
+
+    @override
+    def horizon(self) -> int | float:
+        return 0
+
+    @override
+    def __invert__(self) -> SEREExpr[typing.Any]:  # type: ignore[override]
+        comp: SEREExpr[typing.Any] = Repeat(Literal(True), 1, None)
+        return comp
+
+
+@final
+@frozen
+class Repeat(SEREOp, Generic[ChildExpr]):
     r"""Repetition: ``r[*low..high]``.
 
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
@@ -120,20 +197,25 @@ class Repeat(Expr, Generic[ChildExpr]):
     @override
     def expand(self) -> ChildExpr:
         arg = self.arg.expand()
-        if _normalize_low(self.low) == 1 and self.high == 1:
+        low = _normalize_low(self.low)
+        high = self.high
+        if isinstance(arg, Empty):
+            # epsilon repeated any number of times is still epsilon
+            return cast(ChildExpr, Empty())
+        if low == high == 0:
+            return cast(ChildExpr, Empty())
+        if low == high == 1:
             return cast(ChildExpr, arg)
-        return cast(ChildExpr, Repeat(arg, self.low, self.high))
+        return cast(ChildExpr, Repeat(arg, low, high))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
         if expand:
             return cast(ChildExpr, self.expand().to_nnf(negate=negate, expand=False))
         if negate:
-            if self.is_epsilon():
-                return cast(ChildExpr, Repeat(Literal(True), 1, None))
             if isinstance(self.arg, Literal) and self.arg.value is True and self.low == 1 and self.high is None:
                 # this is the complement of the epsilon node, do return epsilon.
-                return cast(ChildExpr, Repeat(Literal(True), 0, 0))
+                return cast(ChildExpr, Empty())
             return cast(ChildExpr, Complement(self))
         return cast(ChildExpr, self)
 
@@ -144,23 +226,10 @@ class Repeat(Expr, Generic[ChildExpr]):
             return math.inf
         return self.high * arg_hrz
 
-    def is_epsilon(self) -> bool:
-        return self.high == 0
-
-
-def _flatten_same_kind(cls: type[Expr], args: tuple[Expr, ...]) -> tuple[Expr, ...]:
-    out: list[Expr] = []
-    for a in args:
-        if isinstance(a, cls):
-            out.extend(a.args)  # type: ignore[attr-defined]
-        else:
-            out.append(a)
-    return tuple(out)
-
 
 @final
 @frozen
-class Concat(Expr, Generic[ChildExpr]):
+class Concat(SEREOp, Generic[ChildExpr]):
     r"""SERE concatenation: ``r1 ; r2 ; ... ; rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -180,8 +249,14 @@ class Concat(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        expanded = tuple(a.expand() for a in self.args)
-        return cast(ChildExpr, Concat(_flatten_same_kind(Concat, expanded)))
+        args = (a.expand() for a in self.args)
+        # Flatten nested Concat
+        args = flatten_nary_args(Concat, args)
+        # Empty is the identity of concatenation; drop it. nary_fold
+        # collapses to the single survivor, or to Empty() when every
+        # operand is absorbed, avoiding the Concat min_len(2) validator.
+        args = (a for a in args if not isinstance(a, Empty))
+        return cast(ChildExpr, nary_fold(Concat, args, identity=Empty()))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -198,7 +273,7 @@ class Concat(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Fusion(Expr, Generic[ChildExpr]):
+class Fusion(SEREOp, Generic[ChildExpr]):
     r"""SERE fusion: ``r1 : r2 : ... : rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -218,8 +293,10 @@ class Fusion(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        expanded = tuple(a.expand() for a in self.args)
-        return cast(ChildExpr, Fusion(_flatten_same_kind(Fusion, expanded)))
+        args = (a.expand() for a in self.args)
+        args = flatten_nary_args(Fusion, args)
+        # TODO: Maybe handle the Epsilon case?
+        return cast(ChildExpr, Fusion(tuple(args)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -236,7 +313,7 @@ class Fusion(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Alt(Expr, Generic[ChildExpr]):
+class Alt(SEREOp, Generic[ChildExpr]):
     r"""SERE alternation: ``r1 | r2 | ... | rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -256,8 +333,9 @@ class Alt(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        expanded = tuple(a.expand() for a in self.args)
-        return cast(ChildExpr, Alt(_flatten_same_kind(Alt, expanded)))
+        args = (a.expand() for a in self.args)
+        args = flatten_nary_args(Alt, args)
+        return cast(ChildExpr, Alt(tuple(args)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -274,7 +352,7 @@ class Alt(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Inter(Expr, Generic[ChildExpr]):
+class Inter(SEREOp, Generic[ChildExpr]):
     r"""SERE length-matching intersection: ``r1 && r2 && ... && rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -294,8 +372,9 @@ class Inter(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        expanded = tuple(a.expand() for a in self.args)
-        return cast(ChildExpr, Inter(_flatten_same_kind(Inter, expanded)))
+        args = (a.expand() for a in self.args)
+        args = flatten_nary_args(Inter, args)
+        return cast(ChildExpr, Inter(tuple(args)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -312,7 +391,7 @@ class Inter(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class NLMInter(Expr, Generic[ChildExpr]):
+class NLMInter(SEREOp, Generic[ChildExpr]):
     r"""SERE non-length-matching intersection: ``r1 & r2 & ... & rn``.
 
     A word ``w`` matches iff one operand matches ``w`` exactly and every
@@ -341,8 +420,9 @@ class NLMInter(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        expanded = tuple(a.expand() for a in self.args)
-        return cast(ChildExpr, NLMInter(_flatten_same_kind(NLMInter, expanded)))
+        args = (a.expand() for a in self.args)
+        args = flatten_nary_args(NLMInter, args)
+        return cast(ChildExpr, NLMInter(tuple(args)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -359,7 +439,7 @@ class NLMInter(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Complement(Expr, Generic[ChildExpr]):
+class Complement(SEREOp, Generic[ChildExpr]):
     r"""SERE complement: ``~r``.
 
     Language: ``Sigma* \ L(r)``. Distinct from Boolean negation on a
@@ -372,6 +452,11 @@ class Complement(Expr, Generic[ChildExpr]):
     """
 
     arg: ChildExpr = attrs.field(validator=_validate_sere_child)
+
+    @override
+    def __invert__(self) -> SEREExpr[typing.Any]:  # type: ignore[override]
+        # ~~r = r: double-complement elimination (mirrors Not.__invert__).
+        return cast("SEREExpr[typing.Any]", self.arg)
 
     @override
     def __str__(self) -> str:
@@ -417,7 +502,7 @@ class Complement(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class FirstMatch(Expr, Generic[ChildExpr]):
+class FirstMatch(SEREOp, Generic[ChildExpr]):
     r"""SERE first-match restriction: ``first_match(r)``.
 
     Language: words ``w`` in ``L(r)`` whose strictly shorter prefixes
@@ -456,7 +541,7 @@ class FirstMatch(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class FusionRepeat(Expr, Generic[ChildExpr]):
+class FusionRepeat(SEREOp, Generic[ChildExpr]):
     r"""Fusion-iteration: ``r[:*low..high]``.
 
     Like ``Repeat`` (`[*]`) but the separator is fusion (`:`) instead of
@@ -539,7 +624,7 @@ class FusionRepeat(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class GotoRepeat(Expr, Generic[ChildExpr]):
+class GotoRepeat(SEREOp, Generic[ChildExpr]):
     r"""Goto-repetition: ``r[->low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE
@@ -611,7 +696,7 @@ class GotoRepeat(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class EqualRepeat(Expr, Generic[ChildExpr]):
+class EqualRepeat(SEREOp, Generic[ChildExpr]):
     r"""Equal-count repetition: ``r[=low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE
@@ -687,6 +772,7 @@ type SEREExpr[Var: Hashable] = (
     | Implies[SEREExpr[Var]]
     | Equiv[SEREExpr[Var]]
     | Xor[SEREExpr[Var]]
+    | Empty
     | Concat[SEREExpr[Var]]
     | Fusion[SEREExpr[Var]]
     | Alt[SEREExpr[Var]]
@@ -709,6 +795,7 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
             cast(
                 list[type[SEREExpr[Var]]],
                 [
+                    Empty,
                     Concat,
                     Fusion,
                     Alt,
@@ -737,6 +824,7 @@ def sere_expr_iter(expr: SEREExpr[Var]) -> Iterator[SEREExpr[Var]]:
 
 __all__ = [
     "SEREExpr",
+    "Empty",
     "Concat",
     "Fusion",
     "Alt",
