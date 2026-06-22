@@ -31,6 +31,7 @@ from attrs import field, frozen
 from typing_extensions import Self, TypeGuard, override
 
 from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.utils import nary_fold
 
 Var = TypeVar("Var", bound=Hashable)
 
@@ -248,9 +249,7 @@ class And(Expr, Generic[ChildExpr]):
 
     @override
     def __and__(self, other: Expr) -> Self:
-        if isinstance(other, And):
-            return cast(Self, And(self.args + other.args))
-        return cast(Self, And(self.args + (other,)))
+        return cast(Self, nary_fold(And, self.args + (other,)))
 
 
 @final
@@ -299,9 +298,7 @@ class Or(Expr, Generic[ChildExpr]):
 
     @override
     def __or__(self, other: Expr) -> Self:
-        if isinstance(other, Or):
-            return cast(Self, Or(self.args + other.args))
-        return cast(Self, Or(self.args + (other,)))
+        return cast(Self, nary_fold(Or, self.args + (other,)))
 
 
 @final
