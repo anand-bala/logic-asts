@@ -30,7 +30,7 @@ import attrs
 from attrs import field, frozen
 from typing_extensions import Self, TypeGuard, override
 
-from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor, LogicOp
 from logic_asts.utils import nary_fold
 
 Var = TypeVar("Var", bound=Hashable)
@@ -76,7 +76,7 @@ def _format_variable_name(name: object) -> str:
 
 @final
 @frozen
-class Implies(Expr, Generic[ChildExpr]):
+class Implies(LogicOp, Generic[ChildExpr]):
     r"""Logical implication operator: :math:`\phi \to \psi`.
 
     Represents "if phi then psi" or equivalently "not phi or psi".
@@ -96,7 +96,7 @@ class Implies(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        return ~self.lhs | self.rhs
+        return cast(ChildExpr, ~self.lhs | self.rhs)
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -117,7 +117,7 @@ class Implies(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Equiv(Expr, Generic[ChildExpr]):
+class Equiv(LogicOp, Generic[ChildExpr]):
     r"""Logical equivalence operator: :math:`\phi \equiv \psi`.
 
     Represents "phi if and only if psi" or equivalently
@@ -140,7 +140,7 @@ class Equiv(Expr, Generic[ChildExpr]):
     def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return (x | ~y) & (~x | y)
+        return cast(ChildExpr, (x | ~y) & (~x | y))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -161,7 +161,7 @@ class Equiv(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Xor(Expr, Generic[ChildExpr]):
+class Xor(LogicOp, Generic[ChildExpr]):
     r"""Exclusive or operator: :math:`\phi \oplus \psi`.
 
     Represents "phi or psi but not both" or equivalently
@@ -184,7 +184,7 @@ class Xor(Expr, Generic[ChildExpr]):
     def expand(self) -> ChildExpr:
         x = self.lhs
         y = self.rhs
-        return (x & ~y) | (~x & y)
+        return cast(ChildExpr, (x & ~y) | (~x & y))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -205,7 +205,7 @@ class Xor(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class And(Expr, Generic[ChildExpr]):
+class And(LogicOp, Generic[ChildExpr]):
     r"""Conjunction operator: :math:`\phi_1 \wedge \phi_2 \wedge \cdots \wedge \phi_n`.
 
     Represents the logical conjunction of multiple formulas. Requires at least
@@ -227,10 +227,18 @@ class And(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        acc: Expr = Literal(True)
+        # Folding lives here now that ``&`` is a pure constructor: expand each
+        # operand, short-circuit on False, drop the True identity, then
+        # ``nary_fold`` (which flattens nested ``And``).
+        kept: list[Expr] = []
         for a in self.args:
-            acc = acc & a.expand()
-        return cast(ChildExpr, acc)
+            a = a.expand()
+            if isinstance(a, Literal):
+                if a.value is False:
+                    return cast(ChildExpr, Literal(False))
+                continue
+            kept.append(a)
+        return cast(ChildExpr, nary_fold(And, kept, identity=Literal(True)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -247,14 +255,10 @@ class And(Expr, Generic[ChildExpr]):
     def horizon(self) -> int | float:
         return max(arg.horizon() for arg in self.args)
 
-    @override
-    def __and__(self, other: Expr) -> Self:
-        return cast(Self, nary_fold(And, self.args + (other,)))
-
 
 @final
 @frozen
-class Or(Expr, Generic[ChildExpr]):
+class Or(LogicOp, Generic[ChildExpr]):
     r"""Disjunction operator: :math:`\phi_1 \vee \phi_2 \vee \cdots \vee \phi_n`.
 
     Represents the logical disjunction of multiple formulas. Requires at least
@@ -276,10 +280,16 @@ class Or(Expr, Generic[ChildExpr]):
 
     @override
     def expand(self) -> ChildExpr:
-        acc: Expr = Literal(False)
+        # Dual of And.expand: short-circuit on True, drop the False identity.
+        kept: list[Expr] = []
         for a in self.args:
-            acc = acc | a.expand()
-        return cast(ChildExpr, acc)
+            a = a.expand()
+            if isinstance(a, Literal):
+                if a.value is True:
+                    return cast(ChildExpr, Literal(True))
+                continue
+            kept.append(a)
+        return cast(ChildExpr, nary_fold(Or, kept, identity=Literal(False)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -296,14 +306,10 @@ class Or(Expr, Generic[ChildExpr]):
     def horizon(self) -> int | float:
         return max(arg.horizon() for arg in self.args)
 
-    @override
-    def __or__(self, other: Expr) -> Self:
-        return cast(Self, nary_fold(Or, self.args + (other,)))
-
 
 @final
 @frozen
-class Not(Expr, Generic[ChildExpr]):
+class Not(LogicOp, Generic[ChildExpr]):
     r"""Negation operator: :math:`\neg\phi`.
 
     Represents the logical negation of a formula. Can be created using the ``~`` operator.
@@ -324,13 +330,16 @@ class Not(Expr, Generic[ChildExpr]):
         return f"!{str(self.arg)}"
 
     @override
-    def __invert__(self) -> Self:
-        r"""Eliminate double negation: :math:`\neg(\neg\phi) = \phi`."""
-        return cast(Self, self.arg)
-
-    @override
     def expand(self) -> ChildExpr:
-        return cast(ChildExpr, ~(self.arg.expand()))
+        # Folding lives here now that ``~`` is a pure constructor (mirrors
+        # Complement.expand): eliminate double negation and push negation
+        # through literals.
+        inner = self.arg.expand()
+        if isinstance(inner, Not):
+            return cast(ChildExpr, inner.arg)  # zuban: ignore[redundant-cast]
+        if isinstance(inner, Literal):
+            return cast(ChildExpr, Literal(not inner.value))
+        return cast(ChildExpr, Not(inner))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:
@@ -349,7 +358,7 @@ class Not(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Variable(Expr, Generic[Var]):
+class Variable(LogicOp, Generic[Var]):
     r"""A named atomic proposition.
 
     Represents a variable that can be assigned true or false. Variables are
@@ -392,7 +401,7 @@ class Variable(Expr, Generic[Var]):
 
 @final
 @frozen
-class Literal(Expr):
+class Literal(LogicOp):
     r"""Boolean literals.
 
     Represents a fixed boolean value (true or false) as an atomic proposition.
@@ -414,37 +423,14 @@ class Literal(Expr):
         return "1" if self.value else "0"
 
     @override
-    def __invert__(self) -> Literal:
-        r"""Negate the literal: :math:`\neg\text{true} = \text{false}`."""
-        return Literal(not self.value)
-
-    @override
-    def __and__(self, other: Expr) -> Self:
-        if self.value is False:
-            return self
-        elif isinstance(other, Literal):
-            return cast(Self, Literal(self.value and other.value))
-        else:
-            # True & x = x
-            return cast(Self, other)
-
-    @override
-    def __or__(self, other: Expr) -> Self:
-        if self.value is True:
-            return self
-        elif isinstance(other, Literal):
-            return cast(Self, Literal(self.value or other.value))
-        else:
-            # False | x = x
-            return cast(Self, other)
-
-    @override
     def expand(self) -> Self:
         return self
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> Literal:
-        return ~self if negate else self
+        # ``~`` is now a pure constructor, so negate the value directly rather
+        # than via the operator (which would build ``Not(Literal)``).
+        return Literal(not self.value) if negate else self
 
     @override
     def children(self) -> Iterator[Expr]:

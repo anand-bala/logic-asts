@@ -60,7 +60,7 @@ from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
 from logic_asts.ltl import WeakUntil as WeakUntil
 from logic_asts.ltl import is_ltl_node as is_ltl_node
-from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor, LogicOp
 from logic_asts.utils import check_positive, check_start
 
 
@@ -116,7 +116,7 @@ class DistanceInterval:
 
 @final
 @frozen
-class Everywhere(Expr, Generic[ChildExpr]):
+class Everywhere(LogicOp, Generic[ChildExpr]):
     r"""Universal spatial operator: :math:`\square^d \phi`.
 
     Asserts that the formula holds everywhere within the distance interval.
@@ -168,7 +168,7 @@ class Everywhere(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Somewhere(Expr, Generic[ChildExpr]):
+class Somewhere(LogicOp, Generic[ChildExpr]):
     r"""Existential spatial operator: :math:`\diamond^d \phi`.
 
     Asserts that the formula holds somewhere within the distance interval.
@@ -220,7 +220,7 @@ class Somewhere(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Escape(Expr, Generic[ChildExpr]):
+class Escape(LogicOp, Generic[ChildExpr]):
     r"""Escape operator: escape from a region.
 
     Asserts that the system can escape from the region where the formula holds,
@@ -274,7 +274,7 @@ class Escape(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Reach(Expr, Generic[ChildExpr]):
+class Reach(LogicOp, Generic[ChildExpr]):
     r"""Reachability operator: :math:`\phi \leadsto^d \psi`.
 
     Binary spatial operator asserting reachability. The formula :math:`\phi \leadsto^d \psi`

@@ -9,7 +9,7 @@ from pathlib import Path
 from lark import Token, Transformer, v_args
 from lark.visitors import merge_transformers
 
-from logic_asts.base import BoolExpr, Equiv, Implies, Literal, Variable, Xor
+from logic_asts.base import And, BoolExpr, Equiv, Implies, Literal, Not, Or, Variable, Xor
 from logic_asts.ltl import (
     Always,
     Eventually,
@@ -40,6 +40,7 @@ from logic_asts.sere import (
 from logic_asts.spec import Expr
 from logic_asts.stl_go import EdgeCountInterval, GraphIncoming, GraphOutgoing, Quantifier, STLGOExpr, WeightInterval
 from logic_asts.strel import DistanceInterval, Escape, Everywhere, Reach, Somewhere, STRELExpr
+from logic_asts.utils import nary_fold
 
 GRAMMARS_DIR = Path(__file__).parent
 
@@ -81,13 +82,15 @@ class MaybeStrongInterval(typing.NamedTuple):
 @v_args(inline=True)
 class BaseTransform(Transformer[Token, BoolExpr[str]]):
     def mul(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
-        return lhs & rhs
+        # ``&`` is a pure constructor now; flatten at construction via nary_fold
+        # so ``a & b & c`` stays a flat n-ary And.
+        return typing.cast(BoolExpr[str], nary_fold(And, (lhs, rhs)))
 
     def add(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
-        return lhs | rhs
+        return typing.cast(BoolExpr[str], nary_fold(Or, (lhs, rhs)))
 
     def neg(self, arg: BoolExpr[str]) -> BoolExpr[str]:
-        return ~arg
+        return Not(arg)
 
     def xor(self, lhs: BoolExpr[str], rhs: BoolExpr[str]) -> BoolExpr[str]:
         return Xor(lhs, rhs)
@@ -139,7 +142,7 @@ class LtlTransform(Transformer[Token, LTLExpr[str]]):
         return expr
 
     def mul(self, lhs: LTLExpr[str], rhs: LTLExpr[str]) -> LTLExpr[str]:
-        return lhs & rhs
+        return typing.cast(LTLExpr[str], nary_fold(And, (lhs, rhs)))
 
     def until(self, lhs: LTLExpr[str], interval: TimeInterval | None, rhs: LTLExpr[str]) -> LTLExpr[str]:
         interval = interval or TimeInterval()
@@ -324,7 +327,7 @@ class StrelTransform(Transformer[Token, STRELExpr[str]]):
         return expr
 
     def mul(self, lhs: STRELExpr[str], rhs: STRELExpr[str]) -> STRELExpr[str]:
-        return lhs & rhs
+        return typing.cast(STRELExpr[str], nary_fold(And, (lhs, rhs)))
 
     def reach(
         self, lhs: STRELExpr[str], dist_fn: str | None, interval: DistanceInterval, rhs: STRELExpr[str]
@@ -360,7 +363,7 @@ class StlGoTransform(Transformer[Token, STLGOExpr[str]]):
 
     @v_args(inline=True)
     def mul(self, lhs: STLGOExpr[str], rhs: STLGOExpr[str]) -> STLGOExpr[str]:
-        return lhs & rhs
+        return typing.cast(STLGOExpr[str], nary_fold(And, (lhs, rhs)))
 
     @v_args(inline=True)
     def graph_incoming(

@@ -34,8 +34,6 @@ arbitrary SERE operands here, not just Boolean formulas as in Spot.
 from __future__ import annotations
 
 import math
-import typing
-from abc import ABC
 from collections.abc import Hashable, Iterator
 from typing import Generic, Self, TypeVar, cast, final
 
@@ -52,7 +50,7 @@ from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.base import is_bool_node as is_bool_node
-from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor, RegexOp
 from logic_asts.utils import flatten_nary_args, nary_fold
 
 
@@ -77,45 +75,9 @@ def _normalize_low(value: int | None) -> int:
     return 0 if value is None else value
 
 
-class SEREOp(Expr, ABC):
-    r"""Mixin supplying SERE-level operator dunders for SERE-specific nodes.
-
-    For SERE operators the Python dunders denote the SERE connectives,
-    not the Boolean ones inherited from :class:`Expr`:
-
-    - ``~r``      -> :class:`Complement`
-    - ``r1 | r2`` -> :class:`Alt`   (alternation)
-    - ``r1 & r2`` -> :class:`Inter` (length-matching intersection)
-
-    Boolean leaves (:class:`Variable`, :class:`Literal`, :class:`And`,
-    :class:`Or`, :class:`Not`) keep their Boolean dunders, so a Boolean
-    state formula ``a | b`` is still a single-letter ``Or`` (which
-    coincides with ``Alt`` on Boolean operands).
-
-    Note:
-        Operator dispatch is left-biased: ``r | a`` (SERE node on the
-        left) yields ``Alt``, but ``a | r`` (a Boolean leaf on the left)
-        yields a Boolean ``Or`` because the leaf's ``__or__`` never
-        defers. Lead with the SERE node, or use the constructor, when
-        combining a Boolean leaf with a compound SERE operand.
-    """
-
-    @override
-    def __invert__(self) -> Self:
-        return cast(Self, Complement(self))
-
-    @override
-    def __or__(self, other: Expr) -> Self:
-        return cast(Self, nary_fold(Alt, (self, other)))
-
-    @override
-    def __and__(self, other: Expr) -> Self:
-        return cast(Self, nary_fold(Inter, (self, other)))
-
-
 @final
 @frozen
-class Empty(SEREOp):
+class Empty(RegexOp):
     r"""Zero-length matching input: :math:`\varepsilon`
 
     This is equivalent to ``Repeat(Literal(True), 0, 0)``.
@@ -145,15 +107,10 @@ class Empty(SEREOp):
     def horizon(self) -> int | float:
         return 0
 
-    @override
-    def __invert__(self) -> SEREExpr[typing.Any]:  # type: ignore[override]
-        comp: SEREExpr[typing.Any] = Repeat(Literal(True), 1, None)
-        return comp
-
 
 @final
 @frozen
-class Repeat(SEREOp, Generic[ChildExpr]):
+class Repeat(RegexOp, Generic[ChildExpr]):
     r"""Repetition: ``r[*low..high]``.
 
     ``low=None`` is treated as 0; ``high=None`` is unbounded.
@@ -229,7 +186,7 @@ class Repeat(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class Concat(SEREOp, Generic[ChildExpr]):
+class Concat(RegexOp, Generic[ChildExpr]):
     r"""SERE concatenation: ``r1 ; r2 ; ... ; rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -273,7 +230,7 @@ class Concat(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class Fusion(SEREOp, Generic[ChildExpr]):
+class Fusion(RegexOp, Generic[ChildExpr]):
     r"""SERE fusion: ``r1 : r2 : ... : rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -313,7 +270,7 @@ class Fusion(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class Alt(SEREOp, Generic[ChildExpr]):
+class Alt(RegexOp, Generic[ChildExpr]):
     r"""SERE alternation: ``r1 | r2 | ... | rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -352,7 +309,7 @@ class Alt(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class Inter(SEREOp, Generic[ChildExpr]):
+class Inter(RegexOp, Generic[ChildExpr]):
     r"""SERE length-matching intersection: ``r1 && r2 && ... && rn``."""
 
     args: tuple[ChildExpr, ...] = attrs.field(
@@ -391,7 +348,7 @@ class Inter(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class NLMInter(SEREOp, Generic[ChildExpr]):
+class NLMInter(RegexOp, Generic[ChildExpr]):
     r"""SERE non-length-matching intersection: ``r1 & r2 & ... & rn``.
 
     A word ``w`` matches iff one operand matches ``w`` exactly and every
@@ -439,7 +396,7 @@ class NLMInter(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class Complement(SEREOp, Generic[ChildExpr]):
+class Complement(RegexOp, Generic[ChildExpr]):
     r"""SERE complement: ``~r``.
 
     Language: ``Sigma* \ L(r)``. Distinct from Boolean negation on a
@@ -452,11 +409,6 @@ class Complement(SEREOp, Generic[ChildExpr]):
     """
 
     arg: ChildExpr = attrs.field(validator=_validate_sere_child)
-
-    @override
-    def __invert__(self) -> SEREExpr[typing.Any]:  # type: ignore[override]
-        # ~~r = r: double-complement elimination (mirrors Not.__invert__).
-        return cast("SEREExpr[typing.Any]", self.arg)
 
     @override
     def __str__(self) -> str:
@@ -485,6 +437,9 @@ class Complement(SEREOp, Generic[ChildExpr]):
         if isinstance(self.arg, Literal):
             # Push the negation inwards
             return cast(ChildExpr, Literal(not self.arg.value))
+        if isinstance(self.arg, Empty):
+            # Complement of epsilon is the language of all non-empty words: T[+].
+            return cast(ChildExpr, Repeat(Literal(True), 1, None))
         return cast(ChildExpr, Complement(self.arg.expand()))
 
     @override
@@ -502,7 +457,7 @@ class Complement(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class FirstMatch(SEREOp, Generic[ChildExpr]):
+class FirstMatch(RegexOp, Generic[ChildExpr]):
     r"""SERE first-match restriction: ``first_match(r)``.
 
     Language: words ``w`` in ``L(r)`` whose strictly shorter prefixes
@@ -541,7 +496,7 @@ class FirstMatch(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class FusionRepeat(SEREOp, Generic[ChildExpr]):
+class FusionRepeat(RegexOp, Generic[ChildExpr]):
     r"""Fusion-iteration: ``r[:*low..high]``.
 
     Like ``Repeat`` (`[*]`) but the separator is fusion (`:`) instead of
@@ -624,7 +579,7 @@ class FusionRepeat(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class GotoRepeat(SEREOp, Generic[ChildExpr]):
+class GotoRepeat(RegexOp, Generic[ChildExpr]):
     r"""Goto-repetition: ``r[->low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE
@@ -696,7 +651,7 @@ class GotoRepeat(SEREOp, Generic[ChildExpr]):
 
 @final
 @frozen
-class EqualRepeat(SEREOp, Generic[ChildExpr]):
+class EqualRepeat(RegexOp, Generic[ChildExpr]):
     r"""Equal-count repetition: ``r[=low..high]``.
 
     Generalized from Spot's Boolean-operand definition to arbitrary SERE

@@ -62,7 +62,7 @@ from logic_asts.ltl import TimeInterval as TimeInterval
 from logic_asts.ltl import Until as Until
 from logic_asts.ltl import WeakUntil as WeakUntil
 from logic_asts.ltl import is_ltl_node as is_ltl_node
-from logic_asts.spec import ChildExpr, Expr, ExprVisitor
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor, LogicOp
 from logic_asts.utils import check_positive, check_start, check_weight_start
 
 
@@ -257,7 +257,7 @@ class Quantifier(enum.Enum):
 
 @final
 @frozen
-class GraphIncoming(Expr, Generic[ChildExpr]):
+class GraphIncoming(LogicOp, Generic[ChildExpr]):
     r"""Incoming graph operator: :math:`\text{In}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over incoming edges to an agent. Asserts that there exist
@@ -339,7 +339,7 @@ class GraphIncoming(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class GraphOutgoing(Expr, Generic[ChildExpr]):
+class GraphOutgoing(LogicOp, Generic[ChildExpr]):
     r"""Outgoing graph operator: :math:`\text{Out}^{(W,\#)}_\text{(G,E)} \phi`.
 
     Quantifies over outgoing edges from an agent. Asserts that there exist

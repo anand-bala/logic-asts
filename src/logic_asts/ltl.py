@@ -61,8 +61,8 @@ from logic_asts.base import Or as Or
 from logic_asts.base import Variable as Variable
 from logic_asts.base import Xor as Xor
 from logic_asts.base import is_bool_node as is_bool_node
-from logic_asts.spec import ChildExpr, Expr, ExprVisitor
-from logic_asts.utils import check_positive, check_start, convert_next_step
+from logic_asts.spec import ChildExpr, Expr, ExprVisitor, LogicOp
+from logic_asts.utils import check_positive, check_start, convert_next_step, nary_fold
 
 _T = TypeVar("_T", bound=Hashable, default=Hashable)
 
@@ -194,7 +194,7 @@ class TimeInterval:
 
 @final
 @frozen
-class Next(Expr, Generic[ChildExpr]):
+class Next(LogicOp, Generic[ChildExpr]):
     r"""Next operator: :math:`X\phi` or :math:`X^n\phi`.
 
     Asserts that the formula holds in the next time step(s). A formula :math:`X\phi`
@@ -269,7 +269,7 @@ class Next(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class StrongNext(Expr, Generic[ChildExpr]):
+class StrongNext(LogicOp, Generic[ChildExpr]):
     r"""Strong Next operator: :math:`X[!]\phi` or :math:`X[n!]\phi`.
 
     Asserts that the formula holds in the next time step(s) on finite traces.
@@ -345,7 +345,7 @@ class StrongNext(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Always(Expr, Generic[ChildExpr]):
+class Always(LogicOp, Generic[ChildExpr]):
     r"""Always (globally) operator: :math:`G\phi` or :math:`G_{[a,b]}\phi`.
 
     Asserts that the formula holds at all future time steps. The formula :math:`G\phi`
@@ -389,18 +389,17 @@ class Always(Expr, Generic[ChildExpr]):
                 return cast(ChildExpr, Always(self.arg.expand(), strong=self.strong))
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # G[0, t2]
-                arg = self.arg.expand()  # zuban: ignore[unreachable]
-                expr: Expr = arg
-                for _ in range(t2):
-                    expr = expr & next_op(arg)
-                return cast(ChildExpr, expr)
+                arg = self.arg.expand()
+                # ``&`` is a pure constructor now; build a flat n-ary And.
+                conjuncts: list[Expr] = [arg, *(next_op(arg) for _ in range(t2))]
+                return cast(ChildExpr, nary_fold(And, conjuncts))
             case TimeInterval(int(t1), None):
                 # G[t1, inf]
-                assert t1 > 0  # zuban: ignore[unreachable]
+                assert t1 > 0
                 return cast(ChildExpr, next_op(Always(self.arg, strong=self.strong), t1).expand())
             case TimeInterval(int(t1), int(t2)):
                 # G[t1, t2]
-                assert t1 > 0  # zuban: ignore[unreachable]
+                assert t1 > 0
                 # G[t1, t2] = X[t1] G[0,t2-t1] arg
                 # Nested nexts until t1
                 return cast(ChildExpr, next_op(Always(self.arg, TimeInterval(0, t2 - t1), strong=self.strong), t1).expand())
@@ -428,7 +427,7 @@ class Always(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Eventually(Expr, Generic[ChildExpr]):
+class Eventually(LogicOp, Generic[ChildExpr]):
     r"""Eventually (future) operator: :math:`F\phi` or :math:`F_{[a,b]}\phi`.
 
     Asserts that the formula will hold at some future time. The formula :math:`F\phi`
@@ -472,18 +471,17 @@ class Eventually(Expr, Generic[ChildExpr]):
                 return cast(ChildExpr, Eventually(self.arg.expand(), strong=self.strong))
             case TimeInterval(0, int(t2)) | TimeInterval(None, int(t2)):
                 # F[0, t2]
-                arg = self.arg.expand()  # zuban: ignore[unreachable]
-                expr: Expr = arg
-                for _ in range(t2):
-                    expr = expr & next_op(arg)
-                return cast(ChildExpr, expr)
+                arg = self.arg.expand()
+                # ``&`` is a pure constructor now; build a flat n-ary And.
+                conjuncts: list[Expr] = [arg, *(next_op(arg) for _ in range(t2))]
+                return cast(ChildExpr, nary_fold(And, conjuncts))
             case TimeInterval(int(t1), None):
                 # F[t1, inf]
-                assert t1 > 0  # zuban: ignore[unreachable]
+                assert t1 > 0
                 return cast(ChildExpr, next_op(Eventually(self.arg, strong=self.strong), t1).expand())
             case TimeInterval(int(t1), int(t2)):
                 # F[t1, t2]
-                assert t1 > 0  # zuban: ignore[unreachable]
+                assert t1 > 0
                 # F[t1, t2] = X[t1] F[0,t2-t1] arg
                 # Nested nexts until t1
                 return cast(
@@ -513,7 +511,7 @@ class Eventually(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Until(Expr, Generic[ChildExpr]):
+class Until(LogicOp, Generic[ChildExpr]):
     r"""Until operator: :math:`\phi U \psi` or :math:`\phi U_{[a,b]} \psi`.
 
     Binary temporal operator asserting that lhs holds continuously until rhs
@@ -559,13 +557,13 @@ class Until(Expr, Generic[ChildExpr]):
             case TimeInterval(t1, None):  # Unbounded end
                 return cast(
                     ChildExpr,
-                    Always(  # zuban: ignore[unreachable]
+                    Always(
                         arg=Until(lhs=new_lhs, rhs=new_rhs),
                         interval=TimeInterval(0, t1),
                     ).expand(),
                 )
             case TimeInterval(t1, _):
-                z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
+                z1 = Eventually(interval=self.interval, arg=new_lhs).expand()
                 until_interval = TimeInterval(t1, None)
                 z2 = Until(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
                 return cast(ChildExpr, z1 & z2)
@@ -608,7 +606,7 @@ class Until(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class WeakUntil(Expr, Generic[ChildExpr]):
+class WeakUntil(LogicOp, Generic[ChildExpr]):
     r"""Weak Until operator: :math:`\phi W \psi` or :math:`\phi W_{[a,b]} \psi`.
 
     Binary temporal operator asserting that lhs holds continuously until rhs
@@ -654,13 +652,13 @@ class WeakUntil(Expr, Generic[ChildExpr]):
             case TimeInterval(t1, None):  # Unbounded end
                 return cast(
                     ChildExpr,
-                    Always(  # zuban: ignore[unreachable]
+                    Always(
                         arg=WeakUntil(lhs=new_lhs, rhs=new_rhs),
                         interval=TimeInterval(0, t1),
                     ).expand(),
                 )
             case TimeInterval(t1, _):
-                z1 = Eventually(interval=self.interval, arg=new_lhs).expand()  # zuban: ignore[unreachable]
+                z1 = Eventually(interval=self.interval, arg=new_lhs).expand()
                 until_interval = TimeInterval(t1, None)
                 z2 = WeakUntil(interval=until_interval, lhs=new_lhs, rhs=new_rhs).expand()
                 return cast(ChildExpr, z1 & z2)
@@ -703,7 +701,7 @@ class WeakUntil(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class Release(Expr, Generic[ChildExpr]):
+class Release(LogicOp, Generic[ChildExpr]):
     r"""Release operator: :math:`\phi R \psi` or :math:`\phi R_{[a,b]} \psi`.
 
     Binary temporal operator asserting that rhs holds continuously unless
@@ -790,7 +788,7 @@ class Release(Expr, Generic[ChildExpr]):
 
 @final
 @frozen
-class StrongRelease(Expr, Generic[ChildExpr]):
+class StrongRelease(LogicOp, Generic[ChildExpr]):
     r"""Strong Release operator: :math:`\phi M \psi` or :math:`\phi M_{[a,b]} \psi`.
 
     Binary temporal operator asserting that rhs holds continuously until lhs
@@ -841,7 +839,7 @@ class StrongRelease(Expr, Generic[ChildExpr]):
                 return cast(ChildExpr, StrongRelease(new_lhs, new_rhs))
             case _:
                 # Bounded: use dual form Not(WeakUntil(~lhs, ~rhs, interval))
-                return cast(ChildExpr, Not(WeakUntil(~new_lhs, ~new_rhs, self.interval)))  # zuban: ignore[unreachable]
+                return cast(ChildExpr, Not(WeakUntil(~new_lhs, ~new_rhs, self.interval)))
 
     @override
     def to_nnf(self, *, negate: bool = False, expand: bool = True) -> ChildExpr:

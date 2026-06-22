@@ -239,13 +239,13 @@ class TestSereDunders:
         a = Variable("a")
         r = Repeat(a, 0, None)
         result = ~r
-        assert result == Complement(r)  # type: ignore[comparison-overlap]
+        assert result == Complement(r)
 
     def test_or_returns_alt(self) -> None:
         a, b = Variable("a"), Variable("b")
         r = Repeat(a, 0, None)
         result = r | b
-        assert result == Alt((r, b))  # type: ignore[comparison-overlap]
+        assert result == Alt((r, b))
 
     def test_or_produces_alt_instance(self) -> None:
         a, b = Variable("a"), Variable("b")
@@ -257,7 +257,7 @@ class TestSereDunders:
         a, b = Variable("a"), Variable("b")
         r = Repeat(a, 0, None)
         result = r & b
-        assert result == Inter((r, b))  # type: ignore[comparison-overlap]
+        assert result == Inter((r, b))
 
     def test_and_produces_inter_instance(self) -> None:
         a, b = Variable("a"), Variable("b")
@@ -265,19 +265,20 @@ class TestSereDunders:
         result = r & b
         assert isinstance(result, Inter)
 
-    def test_alt_flattens_via_nary_fold(self) -> None:
+    def test_alt_flattens_on_expand(self) -> None:
         a, b = Variable("a"), Variable("b")
         r = Repeat(a, 0, None)
         expr1 = Alt((a, b))
+        # ``|`` is a pure constructor now; flattening happens in expand.
         expr2 = expr1 | r
-        assert expr2 == Alt((a, b, r))
+        assert expr2.expand() == Alt((a, b, r))
 
-    def test_inter_flattens_via_nary_fold(self) -> None:
+    def test_inter_flattens_on_expand(self) -> None:
         a, b = Variable("a"), Variable("b")
         r = Repeat(a, 0, None)
         expr1 = Inter((a, b))
         expr2 = expr1 & r
-        assert expr2 == Inter((a, b, r))
+        assert expr2.expand() == Inter((a, b, r))
 
 
 class TestComplementInvert:
@@ -286,7 +287,8 @@ class TestComplementInvert:
     def test_double_complement_elimination(self) -> None:
         a = Variable("a")
         inner = Repeat(a, 0, None)
-        assert ~Complement(inner) == inner
+        # ``~`` is a pure constructor now; ``~~r = r`` folding happens in expand.
+        assert (~Complement(inner)).expand() == inner  # type: ignore[comparison-overlap]
 
 
 class TestEmpty:
@@ -295,19 +297,20 @@ class TestEmpty:
     def test_complement_of_empty_returns_sigma_plus(self) -> None:
         result = ~Empty()
         expected = Repeat(Literal(True), 1, None)
-        assert result == expected
+        # ``~epsilon = T[+]`` folding happens in expand now.
+        assert result.expand() == expected  # type: ignore[comparison-overlap]
 
     def test_empty_or_returns_alt(self) -> None:
         a = Variable("a")
         r = Repeat(a, 0, None)
         result = Empty() | r
-        assert result == Alt((Empty(), r))  # type: ignore[comparison-overlap]
+        assert result == Alt((Empty(), r))
 
     def test_empty_and_returns_inter(self) -> None:
         a = Variable("a")
         r = Repeat(a, 0, None)
         result = Empty() & r
-        assert result == Inter((Empty(), r))  # type: ignore[comparison-overlap]
+        assert result == Inter((Empty(), r))
 
     def test_empty_expand_returns_self(self) -> None:
         e = Empty()

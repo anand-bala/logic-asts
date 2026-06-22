@@ -6,12 +6,13 @@ import typing as ty
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Collection, Hashable, Iterator
-from typing import TYPE_CHECKING, Generic, TypeAlias, cast
+from typing import TYPE_CHECKING, Generic, TypeAlias
 
-from typing_extensions import Self, TypeVar, overload
+from typing_extensions import Self, TypeVar, overload, override
 
 if TYPE_CHECKING:
-    from logic_asts.base import Not, Variable
+    from logic_asts.base import And, Not, Or, Variable
+    from logic_asts.sere import Alt, Complement, Inter
 
 Var = TypeVar("Var", bound=Hashable)
 ChildExpr = TypeVar("ChildExpr", bound="Expr", default="Expr", covariant=True)
@@ -207,55 +208,109 @@ class Expr(ABC):
             Non-negative integer or float('inf') for unbounded formulas.
         """
 
-    def __invert__(self) -> Self:
-        r"""Logical negation operator (~).
+    @abstractmethod
+    def __invert__(self) -> Expr:
+        r"""Operator interface for ``~``.
 
-        Returns:
-            A ``Not`` expression wrapping this expression, typed as ``Self`` so
-            that operating within a dialect union stays inside that union
-            (``~e`` for ``e: LTLExpr[AP]`` is typed ``LTLExpr[AP]``).
-
-        Note:
-            The return is ``Self`` via :func:`typing.cast`: every dialect union
-            is closed under negation, so the result is a member of the same
-            union as ``self``. Overrides (``Not`` elimination, ``Literal``
-            folding) keep the ``Self`` return.
+        Abstract: every concrete node must pick an operator algebra. The two
+        algebras implement this with precise return types -- :class:`LogicOp`
+        (``Not[Self]``) and :class:`RegexOp` (``Complement[Self]``).
+        Simplification (``~~p = p``, ``~True = False``) lives in
+        :meth:`expand`, not in the operator.
         """
+
+    @abstractmethod
+    def __and__(self, other: Expr) -> Expr:
+        r"""Operator interface for ``&``.
+
+        Abstract; implemented precisely by :class:`LogicOp` (``And[Self | T]``)
+        and :class:`RegexOp` (``Inter[Self | T]``). Folding (``True & x = x``,
+        flattening) lives in :meth:`expand`.
+        """
+
+    @abstractmethod
+    def __or__(self, other: Expr) -> Expr:
+        r"""Operator interface for ``|``.
+
+        Abstract; implemented precisely by :class:`LogicOp` (``Or[Self | T]``)
+        and :class:`RegexOp` (``Alt[Self | T]``). Folding lives in
+        :meth:`expand`.
+        """
+
+
+class LogicOp(Expr, ABC):
+    r"""Mixin supplying the Boolean/logic operator algebra.
+
+    For logic nodes the Python dunders denote the Boolean connectives:
+
+    - ``~p``      -> :class:`~logic_asts.base.Not`
+    - ``p1 & p2`` -> :class:`~logic_asts.base.And`
+    - ``p1 | p2`` -> :class:`~logic_asts.base.Or`
+
+    Returns are precise (``Not[Self]`` / ``And[Self | T]`` / ``Or[Self | T]``),
+    so operating within a dialect union stays inside that union by structure.
+    The dunders are pure constructors; all simplification lives in
+    :meth:`~logic_asts.spec.Expr.expand`.
+    """
+
+    @override
+    def __invert__(self) -> Not[Self]:
         from logic_asts.base import Not
 
-        return cast(Self, Not(self))
+        return Not(self)
 
-    def __and__(self, other: Expr) -> Self:
-        r"""Logical conjunction operator (&).
-
-        Returns:
-            An ``And`` expression joining this and other, typed as ``Self`` so
-            that ``&`` within a dialect union stays inside that union.
-
-        Note:
-            The return is ``Self`` via :func:`typing.cast`: a dialect union is
-            closed under conjunction. ``other`` is accepted as a bare ``Expr``
-            (a covariant child TypeVar cannot be a parameter); pass operands
-            from the same dialect to keep the ``Self`` type honest.
-        """
+    @override
+    def __and__[T: Expr](self, other: T) -> And[Self | T]:
         from logic_asts.base import And
 
-        return cast(Self, And((self, other)))
+        return And((self, other))
 
-    def __or__(self, other: Expr) -> Self:
-        r"""Logical disjunction operator (|).
-
-        Returns:
-            An ``Or`` expression joining this and other, typed as ``Self`` so
-            that ``|`` within a dialect union stays inside that union.
-
-        Note:
-            The return is ``Self`` via :func:`typing.cast`: a dialect union is
-            closed under disjunction. See :meth:`__and__` regarding ``other``.
-        """
+    @override
+    def __or__[T: Expr](self, other: T) -> Or[Self | T]:
         from logic_asts.base import Or
 
-        return cast(Self, Or((self, other)))
+        return Or((self, other))
+
+
+class RegexOp(Expr, ABC):
+    r"""Mixin supplying the regular-expression (SERE) operator algebra.
+
+    For SERE nodes the Python dunders denote the SERE connectives, not the
+    Boolean ones:
+
+    - ``~r``      -> :class:`~logic_asts.sere.Complement`
+    - ``r1 & r2`` -> :class:`~logic_asts.sere.Inter` (length-matching intersection)
+    - ``r1 | r2`` -> :class:`~logic_asts.sere.Alt`   (alternation)
+
+    Boolean leaves (:class:`~logic_asts.base.Variable`, etc.) keep their
+    Boolean dunders via :class:`LogicOp`, so a Boolean state formula ``a | b``
+    is still a single-letter ``Or`` (which coincides with ``Alt`` on Boolean
+    operands).
+
+    Operator dispatch is left-biased: ``r | a`` (SERE node on the left) yields
+    ``Alt``, but ``a | r`` (Boolean leaf on the left) yields a Boolean ``Or``.
+    Lead with the SERE node, or use the constructor, when combining a Boolean
+    leaf with a compound SERE operand. The dunders are pure constructors;
+    flattening and simplification live in :meth:`~logic_asts.spec.Expr.expand`.
+    """
+
+    @override
+    def __invert__(self) -> Complement[Self]:
+        from logic_asts.sere import Complement
+
+        return Complement(self)
+
+    @override
+    def __and__[T: Expr](self, other: T) -> Inter[Self | T]:
+        from logic_asts.sere import Inter
+
+        return Inter((self, other))
+
+    @override
+    def __or__[T: Expr](self, other: T) -> Alt[Self | T]:
+        from logic_asts.sere import Alt
+
+        return Alt((self, other))
 
 
 _T = TypeVar("_T", bound=Expr)

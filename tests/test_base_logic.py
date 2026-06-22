@@ -12,9 +12,6 @@ Tests cover:
 - Simple evaluation with truth assignments
 """
 
-import operator
-from functools import reduce
-
 import pytest
 
 import logic_asts
@@ -112,9 +109,10 @@ class TestBinaryOperators:
         assert expr1 == expr2
 
     def test_and_flattening(self) -> None:
-        """Test that And flattens nested And expressions."""
+        """Test that And flattens nested And expressions (on expand)."""
         p, q, r = Variable("p"), Variable("q"), Variable("r")
-        expr = (p & q) & r
+        # ``&`` is a pure constructor now; flattening happens in expand.
+        expr = ((p & q) & r).expand()
         assert isinstance(expr, And)
         assert len(list(expr.children())) == 3
 
@@ -141,9 +139,10 @@ class TestBinaryOperators:
         assert expr1 == expr2
 
     def test_or_flattening(self) -> None:
-        """Test that Or flattens nested Or expressions."""
+        """Test that Or flattens nested Or expressions (on expand)."""
         p, q, r = Variable("p"), Variable("q"), Variable("r")
-        expr = (p | q) | r
+        # ``|`` is a pure constructor now; flattening happens in expand.
+        expr = ((p | q) | r).expand()
         assert isinstance(expr, Or)
         assert len(list(expr.children())) == 3
 
@@ -196,17 +195,18 @@ class TestUnaryOperator:
         """Test that ~~p = p."""
         p = Variable("p")
         double_neg = ~(~p)
-        assert double_neg == p
+        # ``~`` is a pure constructor now; ``~~p = p`` folding happens in expand.
+        assert double_neg.expand() == p  # type: ignore[comparison-overlap]
 
     def test_not_literal_true(self) -> None:
         """Test Not of Literal(True)."""
         not_true = ~Literal(True)
-        assert not_true == Literal(False)
+        assert not_true.expand() == Literal(False)
 
     def test_not_literal_false(self) -> None:
         """Test Not of Literal(False)."""
         not_false = ~Literal(False)
-        assert not_false == Literal(True)
+        assert not_false.expand() == Literal(True)
 
     def test_not_and(self) -> None:
         """Test Not of And (De Morgan's law)."""
@@ -258,7 +258,7 @@ class TestExpansion:
         expanded = impl.expand()
         # Should be equivalent to ~p | q
         expected = (~p) | q
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
     def test_equiv_expansion(self) -> None:
         r"""Test that p <-> q expands to (p | ~q) & (~p | q)."""
@@ -268,7 +268,7 @@ class TestExpansion:
         expanded = equiv.expand()
         # Should be (p | ~q) & (~p | q)
         expected = (p | ~q) & ((~p) | q)
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
     def test_xor_expansion(self) -> None:
         r"""Test that p ^ q expands to (p & ~q) | (~p & q)."""
@@ -278,7 +278,7 @@ class TestExpansion:
         expanded = xor.expand()
         # Should be (p & ~q) | (~p & q)
         expected = (p & (~q)) | ((~p) & q)
-        assert expanded == expected
+        assert expanded == expected  # type: ignore[comparison-overlap]
 
     def test_expansion_preserves_semantics(self) -> None:
         """Test that expansion preserves truth values."""
@@ -343,7 +343,7 @@ class TestNNFConversion:
         nnf = impl.to_nnf()
         # Should be ~p | q
         expected = (~p) | q
-        assert nnf == expected
+        assert nnf == expected  # type: ignore[comparison-overlap]
 
     def test_nnf_complex_formula(self) -> None:
         """Test NNF of complex nested formula."""
@@ -493,7 +493,8 @@ class TestParsing:
     def test_parse_large_expr(self, n: int) -> None:
         """Test parsing of large expressions."""
         expr = " & ".join((f"(x{i} <-> y{i})" for i in range(n)))
-        expected: Expr = reduce(operator.__and__, (Equiv(Variable(f"x{i}"), Variable(f"y{i}")) for i in range(n)))
+        # The parser flattens chained ``&`` (via nary_fold) into a flat n-ary And.
+        expected: Expr = And(tuple(Equiv(Variable(f"x{i}"), Variable(f"y{i}")) for i in range(n)))
         parsed = logic_asts.parse_expr(expr, syntax="base")
         assert parsed == expected
         assert parsed.horizon() == expected.horizon() == 0
@@ -665,8 +666,11 @@ class TestSimpleEvaluation:
 
     def test_eval_with_tuple_variables(self) -> None:
         """Test evaluation with tuple variable names."""
-        p = Variable(("agent", 0))
-        q = Variable(("agent", 1))
+        # Pin the name type at construction: Variable is invariant in Var, so
+        # without this the literal-tuple inference (tuple[Literal['agent'], ...])
+        # won't widen to tuple[str, int] for simple_eval.
+        p = Variable[tuple[str, int]](("agent", 0))
+        q = Variable[tuple[str, int]](("agent", 1))
         expr = p & q
         assert isinstance(expr, And)
         assignment = {("agent", 0), ("agent", 1)}

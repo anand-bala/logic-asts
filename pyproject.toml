@@ -68,6 +68,11 @@ mode = "default"
 untyped_strict_optional = true
 # Mypy's default is "any", Zuban's "inferred"
 untyped_function_return_mode = "inferred"
+# Zuban's reachability analysis treats a class pattern (e.g. `case TimeInterval(None,
+# None)`) as exhausting the whole type, ignoring restrictive sub-patterns, so it
+# flags later match-cases as unreachable. These are false positives (mypy disagrees),
+# so disable the check globally rather than scattering per-line ignores.
+disable_error_code = ["unreachable"]
 
 [tool.mypy]
 strict = true

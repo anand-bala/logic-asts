@@ -50,7 +50,7 @@ from logic_asts.sere import (
     SEREExpr,
     is_sere_node,
 )
-from logic_asts.spec import Expr, ExprVisitor
+from logic_asts.spec import Expr, ExprVisitor, LogicOp
 
 Var = TypeVar("Var")
 
@@ -71,7 +71,7 @@ def _validates_psl(_instance: object, attribute: object, value: object) -> None:
 
 @final
 @frozen
-class SuffixImpliesUniv(Expr, Generic[Var]):
+class SuffixImpliesUniv(LogicOp, Generic[Var]):
     r"""``{r}[]-> f`` (universal suffix implication)."""
 
     sere: SEREExpr[Var] = field(validator=_validates_sere)
@@ -110,7 +110,7 @@ class SuffixImpliesUniv(Expr, Generic[Var]):
 
 @final
 @frozen
-class SuffixImpliesExist(Expr, Generic[Var]):
+class SuffixImpliesExist(LogicOp, Generic[Var]):
     r"""``{r}<>-> f`` (existential suffix implication)."""
 
     sere: SEREExpr[Var] = field(validator=_validates_sere)
@@ -149,7 +149,7 @@ class SuffixImpliesExist(Expr, Generic[Var]):
 
 @final
 @frozen
-class WeakClosure(Expr, Generic[Var]):
+class WeakClosure(LogicOp, Generic[Var]):
     r"""``{r}`` (weak closure)."""
 
     sere: SEREExpr[Var] = field(validator=_validates_sere)
@@ -180,7 +180,7 @@ class WeakClosure(Expr, Generic[Var]):
 
 @final
 @frozen
-class StrongClosure(Expr, Generic[Var]):
+class StrongClosure(LogicOp, Generic[Var]):
     r"""``{r}!`` (strong closure)."""
 
     sere: SEREExpr[Var] = field(validator=_validates_sere)
